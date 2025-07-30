@@ -1222,7 +1222,216 @@ jobs:
           import sys
           from datetime import datetime
           
-          def analyze_dependencies():
+          import asyncio
+          import aiohttp
+          import re
+          from datetime import datetime, timedelta
+          
+          async def check_component_security(component, analysis):
+              """Check component for security issues"""
+              name = component['name']
+              version = component['version']
+              platform = component['platform']
+              
+              # Check for known vulnerabilities
+              vulnerabilities = await check_vulnerabilities(name, version, platform)
+              if vulnerabilities:
+                  component['vulnerabilities'] = vulnerabilities
+                  component['security_status'] = 'vulnerable'
+                  analysis['summary']['security_issues']['vulnerable_components'] += 1
+                  analysis['security_details']['vulnerable_dependencies'].append({
+                      'name': name,
+                      'version': version,
+                      'platform': platform,
+                      'vulnerabilities': vulnerabilities,
+                      'severity': max([v.get('severity', 'medium') for v in vulnerabilities], default='medium')
+                  })
+              
+              # Check for outdated versions
+              if await is_outdated(name, version, platform):
+                  component['security_status'] = 'outdated'
+                  analysis['summary']['security_issues']['outdated_components'] += 1
+                  analysis['security_details']['outdated_dependencies'].append({
+                      'name': name,
+                      'version': version,
+                      'platform': platform,
+                      'current_version': await get_latest_version(name, platform)
+                  })
+              
+              # Check for unmaintained packages
+              if await is_unmaintained(name, platform):
+                  component['security_status'] = 'unmaintained'
+                  analysis['summary']['security_issues']['unmaintained_components'] += 1
+                  analysis['security_details']['unmaintained_dependencies'].append({
+                      'name': name,
+                      'version': version,
+                      'platform': platform,
+                      'last_updated': await get_last_updated(name, platform)
+                  })
+              
+              # Check license violations
+              license_issues = check_license_violations(component['license_info'])
+              if license_issues:
+                  component['security_status'] = 'license_violation'
+                  analysis['summary']['security_issues']['license_violations'] += 1
+                  analysis['security_details']['license_violations'].append({
+                      'name': name,
+                      'version': version,
+                      'license': license_issues,
+                      'severity': 'high' if 'GPL' in str(license_issues) else 'medium'
+                  })
+          
+          async def check_vulnerabilities(name, version, platform):
+              """Check for known vulnerabilities"""
+              vulnerabilities = []
+              
+              try:
+                  # Check OSV database
+                  async with aiohttp.ClientSession() as session:
+                      if platform == 'dart':
+                          # Check pub.dev for Dart packages
+                          url = f"https://pub.dev/api/packages/{name}"
+                          async with session.get(url) as response:
+                              if response.status == 200:
+                                  data = await response.json()
+                                  if 'vulnerabilities' in data:
+                                      for vuln in data['vulnerabilities']:
+                                          if is_version_affected(version, vuln.get('affected', [])):
+                                              vulnerabilities.append({
+                                                  'id': vuln.get('id', 'unknown'),
+                                                  'title': vuln.get('title', 'Unknown vulnerability'),
+                                                  'severity': vuln.get('severity', 'medium'),
+                                                  'description': vuln.get('description', ''),
+                                                  'source': 'pub.dev'
+                                              })
+                      
+                      # Check NVD for general vulnerabilities
+                      nvd_url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?keyword={name}"
+                      async with session.get(nvd_url) as response:
+                          if response.status == 200:
+                              data = await response.json()
+                              for vuln in data.get('vulnerabilities', []):
+                                  cve = vuln.get('cve', {})
+                                  if is_version_affected(version, cve.get('configurations', [])):
+                                      vulnerabilities.append({
+                                          'id': cve.get('id', 'unknown'),
+                                          'title': cve.get('descriptions', [{}])[0].get('value', 'Unknown vulnerability'),
+                                          'severity': get_nvd_severity(cve),
+                                          'description': cve.get('descriptions', [{}])[0].get('value', ''),
+                                          'source': 'NVD'
+                                      })
+              
+              except Exception as e:
+                  print(f"Error checking vulnerabilities for {name}: {e}")
+              
+              return vulnerabilities
+          
+          def is_version_affected(version, affected_ranges):
+              """Check if version is affected by vulnerability"""
+              # Simple version comparison - in production, use proper semver library
+              try:
+                  for range_info in affected_ranges:
+                      if 'versions' in range_info:
+                          for ver_range in range_info['versions']:
+                              if version in ver_range or 'all' in ver_range:
+                                  return True
+              except:
+                  pass
+              return False
+          
+          def get_nvd_severity(cve):
+              """Extract severity from NVD CVE"""
+              metrics = cve.get('metrics', {})
+              if 'cvssMetricV31' in metrics:
+                  return metrics['cvssMetricV31'][0]['cvssData']['baseSeverity'].lower()
+              elif 'cvssMetricV30' in metrics:
+                  return metrics['cvssMetricV30'][0]['cvssData']['baseSeverity'].lower()
+              return 'medium'
+          
+          async def is_outdated(name, version, platform):
+              """Check if package is outdated"""
+              try:
+                  latest_version = await get_latest_version(name, platform)
+                  if latest_version and latest_version != version:
+                      # Simple version comparison
+                      return compare_versions(version, latest_version) < 0
+              except:
+                  pass
+              return False
+          
+          async def get_latest_version(name, platform):
+              """Get latest version of package"""
+              try:
+                  async with aiohttp.ClientSession() as session:
+                      if platform == 'dart':
+                          url = f"https://pub.dev/api/packages/{name}"
+                          async with session.get(url) as response:
+                              if response.status == 200:
+                                  data = await response.json()
+                                  return data.get('latest', {}).get('version')
+              except:
+                  pass
+              return None
+          
+          def compare_versions(v1, v2):
+              """Simple version comparison"""
+              try:
+                  v1_parts = [int(x) for x in v1.split('.')]
+                  v2_parts = [int(x) for x in v2.split('.')]
+                  for i in range(max(len(v1_parts), len(v2_parts))):
+                      v1_part = v1_parts[i] if i < len(v1_parts) else 0
+                      v2_part = v2_parts[i] if i < len(v2_parts) else 0
+                      if v1_part < v2_part:
+                          return -1
+                      elif v1_part > v2_part:
+                          return 1
+                  return 0
+              except:
+                  return 0
+          
+          async def is_unmaintained(name, platform):
+              """Check if package is unmaintained (no updates in 2 years)"""
+              try:
+                  last_updated = await get_last_updated(name, platform)
+                  if last_updated:
+                      two_years_ago = datetime.now() - timedelta(days=730)
+                      return last_updated < two_years_ago
+              except:
+                  pass
+              return False
+          
+          async def get_last_updated(name, platform):
+              """Get last updated date of package"""
+              try:
+                  async with aiohttp.ClientSession() as session:
+                      if platform == 'dart':
+                          url = f"https://pub.dev/api/packages/{name}"
+                          async with session.get(url) as response:
+                              if response.status == 200:
+                                  data = await response.json()
+                                  updated_str = data.get('latest', {}).get('published')
+                                  if updated_str:
+                                      return datetime.fromisoformat(updated_str.replace('Z', '+00:00'))
+              except:
+                  pass
+              return None
+          
+          def check_license_violations(license_info):
+              """Check for license violations"""
+              prohibited_licenses = ['GPL', 'GPL-2.0', 'GPL-3.0', 'AGPL', 'AGPL-3.0', 'LGPL', 'LGPL-2.1', 'LGPL-3.0']
+              warning_licenses = ['MPL', 'MPL-2.0', 'CC-BY-SA', 'CC-BY-NC']
+              
+              violations = []
+              for license_item in license_info:
+                  license_id = license_item.get('license', {}).get('id', '').upper()
+                  if any(prohibited in license_id for prohibited in prohibited_licenses):
+                      violations.append(f"Prohibited license: {license_id}")
+                  elif any(warning in license_id for warning in warning_licenses):
+                      violations.append(f"Warning license: {license_id}")
+              
+              return violations
+          
+          async def analyze_dependencies():
               # Load enhanced SBOM
               with open('enhanced-sbom.json', 'r') as f:
                   sbom = json.load(f)
@@ -1234,9 +1443,21 @@ jobs:
                       'by_type': {},
                       'by_scope': {},
                       'by_platform': {},
-                      'by_source': {}
+                      'by_source': {},
+                      'security_issues': {
+                          'vulnerable_components': 0,
+                          'outdated_components': 0,
+                          'unmaintained_components': 0,
+                          'license_violations': 0
+                      }
                   },
-                  'components': []
+                  'components': [],
+                  'security_details': {
+                      'vulnerable_dependencies': [],
+                      'outdated_dependencies': [],
+                      'unmaintained_dependencies': [],
+                      'license_violations': []
+                  }
               }
               
               for component in sbom.get('components', []):
@@ -1279,15 +1500,26 @@ jobs:
                   analysis['summary']['by_source'][source] = analysis['summary']['by_source'].get(source, 0) + 1
                   
                   # Add component details
-                  analysis['components'].append({
+                  component_info = {
                       'name': component.get('name'),
                       'version': component.get('version'),
                       'type': comp_type,
                       'scope': comp_scope,
                       'platform': platform,
                       'source': source,
-                      'purl': comp_purl
-                  })
+                      'purl': comp_purl,
+                      'security_status': 'unknown',
+                      'last_updated': None,
+                      'vulnerabilities': [],
+                      'license_info': component.get('licenses', []),
+                      'description': component.get('description', ''),
+                      'authors': component.get('authors', [])
+                  }
+                  
+                  # Check for security issues
+                  await check_component_security(component_info, analysis)
+                  
+                  analysis['components'].append(component_info)
               
               # Write analysis
               with open('dependency-analysis.json', 'w') as f:
@@ -1299,10 +1531,44 @@ jobs:
               print('By scope:', analysis['summary']['by_scope'])
               print('By platform:', analysis['summary']['by_platform'])
               print('By source:', analysis['summary']['by_source'])
+              
+              # Print security summary
+              security = analysis['summary']['security_issues']
+              print('\n=== Security Analysis ===')
+              print(f'Vulnerable components: {security["vulnerable_components"]}')
+              print(f'Outdated components: {security["outdated_components"]}')
+              print(f'Unmaintained components: {security["unmaintained_components"]}')
+              print(f'License violations: {security["license_violations"]}')
+              
+              # Print detailed security issues
+              if analysis['security_details']['vulnerable_dependencies']:
+                  print('\n=== Vulnerable Dependencies ===')
+                  for dep in analysis['security_details']['vulnerable_dependencies']:
+                      print(f'🔴 {dep["name"]}@{dep["version"]} ({dep["platform"]}) - {dep["severity"]}')
+                      for vuln in dep['vulnerabilities']:
+                          print(f'   - {vuln["id"]}: {vuln["title"]} ({vuln["severity"]})')
+              
+              if analysis['security_details']['outdated_dependencies']:
+                  print('\n=== Outdated Dependencies ===')
+                  for dep in analysis['security_details']['outdated_dependencies']:
+                      print(f'🟡 {dep["name"]}@{dep["version"]} -> {dep["current_version"]} ({dep["platform"]})')
+              
+              if analysis['security_details']['unmaintained_dependencies']:
+                  print('\n=== Unmaintained Dependencies ===')
+                  for dep in analysis['security_details']['unmaintained_dependencies']:
+                      print(f'🟠 {dep["name"]}@{dep["version"]} - Last updated: {dep["last_updated"]}')
+              
+              if analysis['security_details']['license_violations']:
+                  print('\n=== License Violations ===')
+                  for dep in analysis['security_details']['license_violations']:
+                      print(f'⚠️ {dep["name"]}@{dep["version"]} - {dep["license"]}')
           
           if __name__ == '__main__':
-              analyze_dependencies()
+              asyncio.run(analyze_dependencies())
           EOF
+          
+          # Install required Python packages
+          pip install aiohttp
           
           python3 generate-dependency-analysis.py
             
