@@ -1,7 +1,5 @@
 import 'package:dio/dio.dart';
 
-import '../../core/constants/app_constants.dart';
-
 /// 网络服务抽象类
 abstract class NetworkService {
   Future<Response<T>> get<T>(

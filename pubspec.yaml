@@ -42,6 +42,23 @@ dependencies:
   flutter_screenutil: ^5.9.0
   responsive_framework: ^1.1.1
 
+  # Network & HTTP
+  dio: ^5.4.0
+
+  # Dependency Injection
+  get_it: ^7.6.4
+
+  # Security & Encryption
+  crypto: ^3.0.3
+  cryptography: ^2.7.0
+  flutter_secure_storage: ^9.0.0
+  local_auth: ^2.1.7
+
+  # Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.2
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
