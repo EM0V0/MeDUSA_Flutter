@@ -372,57 +372,89 @@ jobs:
               // Simple parsing without yaml package dependency
               final pubspecYaml = _parseYaml(pubspecContent);
               final lockYaml = _parseYaml(lockContent);
-            
-            // Generate SBOM
-            final sbom = <String, dynamic>{
-              'bomFormat': 'CycloneDX',
-              'specVersion': '1.4',
-              'serialNumber': 'urn:uuid:${DateTime.now().millisecondsSinceEpoch}',
-              'version': 1,
-              'metadata': <String, dynamic>{
-                'timestamp': DateTime.now().toIso8601String(),
-                'tools': <Map<String, dynamic>>[
-                  <String, dynamic>{
-                    'vendor': 'Flutter Security Scanner',
-                    'name': 'flutter-sbom-generator',
-                    'version': '1.0.0'
+              
+              // Generate SBOM
+              final sbom = <String, dynamic>{
+                'bomFormat': 'CycloneDX',
+                'specVersion': '1.4',
+                'serialNumber': 'urn:uuid:${DateTime.now().millisecondsSinceEpoch}',
+                'version': 1,
+                'metadata': <String, dynamic>{
+                  'timestamp': DateTime.now().toIso8601String(),
+                  'tools': <Map<String, dynamic>>[
+                    <String, dynamic>{
+                      'vendor': 'Flutter Security Scanner',
+                      'name': 'flutter-sbom-generator',
+                      'version': '1.0.0'
+                    }
+                  ],
+                  'component': <String, dynamic>{
+                    'type': 'application',
+                    'bom-ref': pubspecYaml['name'] ?? 'unknown',
+                    'name': pubspecYaml['name'] ?? 'unknown',
+                    'version': pubspecYaml['version'] ?? '0.0.0',
                   }
-                ],
-                'component': <String, dynamic>{
-                  'type': 'application',
-                  'bom-ref': pubspecYaml['name'] ?? 'unknown',
-                  'name': pubspecYaml['name'] ?? 'unknown',
-                  'version': pubspecYaml['version'] ?? '0.0.0',
-                }
-              },
-              'components': <Map<String, dynamic>>[]
-            };
-            
-            // Process dependencies
-            final packages = lockYaml['packages'] as Map<String, dynamic>?;
-            if (packages != null) {
-              packages.forEach((name, details) {
-                if (name != pubspecYaml['name']) {
-                  final detailsMap = details as Map<String, dynamic>;
-                  (sbom['components'] as List<Map<String, dynamic>>).add(<String, dynamic>{
-                    'type': 'library',
-                    'bom-ref': 'pkg:pub/$name@${detailsMap['version']}',
-                    'name': name,
-                    'version': detailsMap['version'],
-                    'purl': 'pkg:pub/$name@${detailsMap['version']}',
-                    'scope': detailsMap['dependency'] == 'direct main' ? 'required' : 'optional',
-                    'hashes': <String>[]
-                  });
-                }
-              });
+                },
+                'components': <Map<String, dynamic>>[]
+              };
+              
+              // Process dependencies
+              final packages = lockYaml['packages'] as Map<String, dynamic>?;
+              if (packages != null) {
+                packages.forEach((name, details) {
+                  if (name != pubspecYaml['name']) {
+                    final detailsMap = details as Map<String, dynamic>;
+                    (sbom['components'] as List<Map<String, dynamic>>).add(<String, dynamic>{
+                      'type': 'library',
+                      'bom-ref': 'pkg:pub/$name@${detailsMap['version']}',
+                      'name': name,
+                      'version': detailsMap['version'],
+                      'purl': 'pkg:pub/$name@${detailsMap['version']}',
+                      'scope': detailsMap['dependency'] == 'direct main' ? 'required' : 'optional',
+                      'hashes': <String>[]
+                    });
+                  }
+                });
+              }
+              
+              // Write SBOM
+              final sbomFile = File('flutter-sbom.json');
+              await sbomFile.writeAsString(
+                JsonEncoder.withIndent('  ').convert(sbom)
+              );
+              print('Flutter SBOM generated successfully');
+            } catch (e) {
+              print('Error generating Flutter SBOM: $e');
+              // Create empty SBOM as fallback
+              final emptySbom = <String, dynamic>{
+                'bomFormat': 'CycloneDX',
+                'specVersion': '1.4',
+                'version': 1,
+                'metadata': <String, dynamic>{
+                  'timestamp': DateTime.now().toIso8601String(),
+                  'tools': <Map<String, dynamic>>[
+                    <String, dynamic>{
+                      'vendor': 'Flutter Security Scanner',
+                      'name': 'flutter-sbom-generator',
+                      'version': '1.0.0'
+                    }
+                  ],
+                  'component': <String, dynamic>{
+                    'type': 'application',
+                    'bom-ref': 'unknown',
+                    'name': 'unknown',
+                    'version': '0.0.0',
+                  }
+                },
+                'components': <Map<String, dynamic>>[]
+              };
+              
+              final sbomFile = File('flutter-sbom.json');
+              await sbomFile.writeAsString(
+                JsonEncoder.withIndent('  ').convert(emptySbom)
+              );
+              print('Empty Flutter SBOM created as fallback');
             }
-            
-            // Write SBOM
-            final sbomFile = File('flutter-sbom.json');
-            await sbomFile.writeAsString(
-              JsonEncoder.withIndent('  ').convert(sbom)
-            );
-            print('Flutter SBOM generated successfully');
           }
           EOF
           
