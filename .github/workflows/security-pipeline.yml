@@ -1586,7 +1586,7 @@ jobs:
       - uses: actions/checkout@v4
         
       - name: Download SBOM
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.7
         with:
           name: software-bill-of-materials
           
@@ -1823,7 +1823,84 @@ jobs:
                 touch ${{ matrix.tool }}-results.txt
               }
               # Convert to SARIF format using a simple approach
-              echo 'import "dart:io"; import "dart:convert"; void main() async { final input = File("flutter-analyzer-results.txt"); if (!await input.exists()) { final emptySarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": []}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(emptySarif)); return; } final lines = await input.readAsLines(); final results = []; for (final line in lines) { if (line.contains("bullet")) { final parts = line.split("bullet"); if (parts.length >= 3) { final location = parts[0].trim(); final severity = parts[1].trim(); final message = parts[2].trim(); final locationParts = location.split(":"); if (locationParts.length >= 2) { results.add({"ruleId": "flutter-analyzer", "level": severity.toLowerCase() == "error" ? "error" : "warning", "message": {"text": message}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": locationParts[0]}, "region": {"startLine": int.tryParse(locationParts[1]) ?? 1}}}]}); } } } } final sarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": results}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(sarif)); }' > convert-to-sarif.dart
+              cat > convert-to-sarif.dart << 'EOF'
+              import "dart:io";
+              import "dart:convert";
+
+              void main() async {
+                final input = File("flutter-analyzer-results.txt");
+                if (!await input.exists()) {
+                  final emptySarif = {
+                    "version": "2.1.0",
+                    "runs": [
+                      {
+                        "tool": {
+                          "driver": {
+                            "name": "flutter-analyzer",
+                            "version": "1.0.0"
+                          }
+                        },
+                        "results": []
+                      }
+                    ]
+                  };
+                  await File("flutter-analyzer-results.sarif").writeAsString(
+                      JsonEncoder.withIndent("  ").convert(emptySarif));
+                  return;
+                }
+                
+                final lines = await input.readAsLines();
+                final results = [];
+                
+                for (final line in lines) {
+                  if (line.contains("bullet")) {
+                    final parts = line.split("bullet");
+                    if (parts.length >= 3) {
+                      final location = parts[0].trim();
+                      final severity = parts[1].trim();
+                      final message = parts[2].trim();
+                      final locationParts = location.split(":");
+                      
+                      if (locationParts.length >= 2) {
+                        results.add({
+                          "ruleId": "flutter-analyzer",
+                          "level": severity.toLowerCase() == "error" ? "error" : "warning",
+                          "message": {"text": message},
+                          "locations": [
+                            {
+                              "physicalLocation": {
+                                "artifactLocation": {"uri": locationParts[0]},
+                                "region": {
+                                  "startLine": int.tryParse(locationParts[1]) ?? 1
+                                }
+                              }
+                            }
+                          ]
+                        });
+                      }
+                    }
+                  }
+                }
+                
+                final sarif = {
+                  "version": "2.1.0",
+                  "runs": [
+                    {
+                      "tool": {
+                        "driver": {
+                          "name": "flutter-analyzer",
+                          "version": "1.0.0"
+                        }
+                      },
+                      "results": results
+                    }
+                  ]
+                };
+                
+                await File("flutter-analyzer-results.sarif").writeAsString(
+                    JsonEncoder.withIndent("  ").convert(sarif));
+              }
+              EOF
               
               dart run convert-to-sarif.dart
               ;;
@@ -1861,7 +1938,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           
       - name: Download SBOM
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.7
         with:
           name: software-bill-of-materials
           
@@ -1885,51 +1962,51 @@ jobs:
           
           def check_licenses(sbom_file):
               try:
-              with open(sbom_file, 'r') as f:
-                  sbom = json.load(f)
-              report = {
-                  'timestamp': datetime.now().isoformat(),
-                  'compliant': True,
-                  'violations': [],
-                  'warnings': [],
-                  'summary': {
-                      'total_packages': 0,
-                      'prohibited_licenses': 0,
-                      'warning_licenses': 0
+                  with open(sbom_file, 'r') as f:
+                      sbom = json.load(f)
+                  report = {
+                      'timestamp': datetime.now().isoformat(),
+                      'compliant': True,
+                      'violations': [],
+                      'warnings': [],
+                      'summary': {
+                          'total_packages': 0,
+                          'prohibited_licenses': 0,
+                          'warning_licenses': 0
+                      }
                   }
-              }
-              components = sbom.get('components', [])
-              report['summary']['total_packages'] = len(components)
-              for component in components:
-                  name = component.get('name', 'unknown')
-                  version = component.get('version', 'unknown')
-                  licenses = component.get('licenses', [])
-                  for license_info in licenses:
-                      license_id = license_info.get('license', {}).get('id', '')
-                      if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
-                          report['violations'].append({
-                              'package': name,
-                              'version': version,
-                              'license': license_id,
-                              'severity': 'HIGH'
-                          })
-                          report['summary']['prohibited_licenses'] += 1
-                          report['compliant'] = False
-                      elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
-                          report['warnings'].append({
-                              'package': name,
-                              'version': version,
-                              'license': license_id,
-                              'severity': 'MEDIUM'
-                          })
-                          report['summary']['warning_licenses'] += 1
-              with open('license-compliance-report.json', 'w') as f:
-                  json.dump(report, f, indent=2)
-              print(f"License compliance check completed")
-              print(f"Total packages: {report['summary']['total_packages']}")
-              print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
-              print(f"Warning licenses: {report['summary']['warning_licenses']}")
-              return report['compliant']
+                  components = sbom.get('components', [])
+                  report['summary']['total_packages'] = len(components)
+                  for component in components:
+                      name = component.get('name', 'unknown')
+                      version = component.get('version', 'unknown')
+                      licenses = component.get('licenses', [])
+                      for license_info in licenses:
+                          license_id = license_info.get('license', {}).get('id', '')
+                          if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
+                              report['violations'].append({
+                                  'package': name,
+                                  'version': version,
+                                  'license': license_id,
+                                  'severity': 'HIGH'
+                              })
+                              report['summary']['prohibited_licenses'] += 1
+                              report['compliant'] = False
+                          elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
+                              report['warnings'].append({
+                                  'package': name,
+                                  'version': version,
+                                  'license': license_id,
+                                  'severity': 'MEDIUM'
+                              })
+                              report['summary']['warning_licenses'] += 1
+                  with open('license-compliance-report.json', 'w') as f:
+                      json.dump(report, f, indent=2)
+                  print(f"License compliance check completed")
+                  print(f"Total packages: {report['summary']['total_packages']}")
+                  print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
+                  print(f"Warning licenses: {report['summary']['warning_licenses']}")
+                  return report['compliant']
               except Exception as e:
                   print(f'Error processing license compliance: {e}', file=sys.stderr)
                   import traceback
@@ -1939,7 +2016,7 @@ jobs:
           if __name__ == '__main__':
               try:
                   compliant = check_licenses('enhanced-sbom.json')
-              sys.exit(0 if compliant else 1)
+                  sys.exit(0 if compliant else 1)
               except Exception as e:
                   print(f'Fatal error: {e}', file=sys.stderr)
                   sys.exit(2)
@@ -2033,7 +2110,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Download all scan results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.7
         with:
           path: scan-results/
           
@@ -2133,7 +2210,7 @@ jobs:
     
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.7
         with:
           path: artifacts/
           
@@ -2184,7 +2261,9 @@ jobs:
                   'supply_chain': {},
                   'recommendations': []
               }
-          }# Process SAST reports
+          }
+          
+          # Process SAST reports
           sast_files = glob.glob('artifacts/sast-*-results/*.sarif')
           for sarif_file in sast_files:
               data = load_json_file(sarif_file)
