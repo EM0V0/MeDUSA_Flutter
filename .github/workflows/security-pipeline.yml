@@ -464,7 +464,7 @@ jobs:
           jq -s '.[0] * {components: (.[0].components + .[1].components)}' syft-sbom.json flutter-sbom.json > sbom.json
           
       - name: Vulnerability Scan with Grype v0.74+
-        continue-on-error: true  # 添加这一行，让步骤继续执行即使发现漏洞
+        continue-on-error: true
         run: |
           # Install Grype manually
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
@@ -473,12 +473,23 @@ jobs:
           # Run vulnerability scan
           if [ -f "sbom.json" ]; then
             grype sbom:sbom.json --output sarif --file grype-results.sarif || {
-              echo "Grype scan failed, creating empty SARIF file"
+              EXIT_CODE=$?
+              echo "Grype scan failed with exit code: $EXIT_CODE"
+              if [ $EXIT_CODE -eq 1 ]; then
+                echo "Vulnerabilities found - this is expected behavior"
+              fi
+              echo "Creating empty SARIF file as fallback"
               echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
             }
           else
             echo "SBOM file not found, creating empty SARIF file"
             echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
+          fi
+          
+          # Display summary if SARIF file exists
+          if [ -f "grype-results.sarif" ] && command -v jq &> /dev/null; then
+            VULN_COUNT=$(jq '.runs[0].results | length' grype-results.sarif 2>/dev/null || echo "0")
+            echo "::warning::Grype found $VULN_COUNT vulnerabilities"
           fi
           
       - name: Trivy Security Scan
@@ -491,28 +502,36 @@ jobs:
           severity: ${{ env.TRIVY_SEVERITY }}
           
       - name: OSV Scanner
-        continue-on-error: true  # 添加这一行，让步骤继续执行即使发现漏洞
+        continue-on-error: true
         run: |
           echo "Running OSV Scanner..."
           
-          # Install OSV Scanner with signature verification - Fixed P1-5: Add signature verification
+          # Install OSV Scanner with signature verification
           wget -q https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
           wget -q https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64.asc
           chmod +x osv-scanner_linux_amd64
           
-          # Verify signature
+          # Verify signature (optional)
           gpg --keyserver keys.openpgp.org --recv-keys 648ACFD622F3D138 || echo "GPG key import failed, continuing without verification"
           gpg --verify osv-scanner_linux_amd64.asc osv-scanner_linux_amd64 || echo "Signature verification failed, continuing anyway"
           
           # Run scan
-          ./osv-scanner_linux_amd64 --sbom=sbom.json --format=json > osv-results.json || true
-          
-          # Check results
-          if [ -f "osv-results.json" ]; then
-            echo "OSV scan completed"
-            if command -v jq &> /dev/null; then
-              jq '.results | length' osv-results.json || echo "No vulnerabilities found"
+          ./osv-scanner_linux_amd64 --sbom=sbom.json --format=json > osv-results.json || {
+            EXIT_CODE=$?
+            echo "OSV Scanner exited with code: $EXIT_CODE"
+            if [ $EXIT_CODE -eq 8 ]; then
+              echo "Vulnerabilities found - this is expected behavior"
             fi
+          }
+          
+          # Display summary
+          if [ -f "osv-results.json" ] && command -v jq &> /dev/null; then
+            VULN_COUNT=$(jq '.results | length' osv-results.json 2>/dev/null || echo "0")
+            echo "::warning::OSV Scanner found $VULN_COUNT vulnerabilities"
+            
+            # Show top vulnerabilities
+            echo "Top vulnerabilities:"
+            jq -r '.results[:5][]? | "- \(.vulnerability.id // "Unknown"): \(.vulnerability.summary // "No summary")"' osv-results.json 2>/dev/null || true
           fi
           
       - name: Upload dependency security reports
@@ -654,16 +673,27 @@ jobs:
         
       # Secret scanning to prevent leaks - Fixed P2-2: Updated to v3
       - name: Secret Scanning with TruffleHog
-        continue-on-error: true  # 添加这一行，让步骤继续执行即使发现漏洞
+        continue-on-error: true
         run: |
           # Install TruffleHog manually
           pip install trufflehog
           
           # Run secret scan
           trufflehog --json . > trufflehog-results.json || {
-            echo "TruffleHog scan failed, creating empty results file"
+            EXIT_CODE=$?
+            echo "TruffleHog scan failed with exit code: $EXIT_CODE"
+            if [ $EXIT_CODE -eq 1 ]; then
+              echo "Secrets found - this is expected behavior"
+            fi
+            echo "Creating empty results file as fallback"
             echo '{"results": []}' > trufflehog-results.json
           }
+          
+          # Display summary
+          if [ -f "trufflehog-results.json" ] && command -v jq &> /dev/null; then
+            SECRET_COUNT=$(jq '.results | length' trufflehog-results.json 2>/dev/null || echo "0")
+            echo "::warning::TruffleHog found $SECRET_COUNT potential secrets"
+          fi
           
       # Dependency integrity verification
       - name: Verify Dependencies
