@@ -282,8 +282,7 @@ class SecureNetworkServiceImpl implements SecureNetworkService {
   Future<String> _getCryptoKey() async {
     String? key = await _secureStorage.read(key: AppConstants.encryptionKeyKey);
     if (key == null) {
-      key = await _encryptionService.generateAESKey();
-      await _secureStorage.write(key: AppConstants.encryptionKeyKey, value: key);
+      throw Exception('Encryption key not found in secure storage');
     }
     return key;
   }
