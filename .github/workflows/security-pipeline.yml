@@ -1205,35 +1205,43 @@ jobs:
             return null;
           }
           
-          // Final deduplication function
+          // Advanced deduplication function with better component selection
           List<Map<String, dynamic>> deduplicateComponents(List<Map<String, dynamic>> components) {
-            final seenPurls = <String>{};
+            final seenKeys = <String, Map<String, dynamic>>{};
             final uniqueComponents = <Map<String, dynamic>>[];
             
             for (final component in components) {
-              final purl = component['purl'] as String?;
-              if (purl != null) {
-                // Remove query parameters for comparison
-                final basePurl = purl.split('?')[0];
-                if (!seenPurls.contains(basePurl)) {
-                  seenPurls.add(basePurl);
-                  uniqueComponents.add(component);
-                }
+              final name = component['name'] as String?;
+              final version = component['version'] as String?;
+              
+              if (name == null || version == null) continue;
+              
+              final key = '$name@$version';
+              
+              if (!seenKeys.containsKey(key)) {
+                seenKeys[key] = component;
+                uniqueComponents.add(component);
               } else {
-                // If no PURL, use name+version as key
-                final name = component['name'] as String?;
-                final version = component['version'] as String?;
-                if (name != null && version != null) {
-                  final key = '$name@$version';
-                  if (!seenPurls.contains(key)) {
-                    seenPurls.add(key);
-                    uniqueComponents.add(component);
+                // Keep the component with more detailed information
+                final existing = seenKeys[key]!;
+                final existingProps = (existing['properties'] as List<dynamic>?)?.length ?? 0;
+                final currentProps = (component['properties'] as List<dynamic>?)?.length ?? 0;
+                
+                if (currentProps > existingProps) {
+                  // Replace with more detailed component
+                  seenKeys[key] = component;
+                  for (int i = 0; i < uniqueComponents.length; i++) {
+                    final uc = uniqueComponents[i];
+                    if (uc['name'] == name && uc['version'] == version) {
+                      uniqueComponents[i] = component;
+                      break;
+                    }
                   }
                 }
               }
             }
             
-            print('Deduplication: ${components.length} -> ${uniqueComponents.length} components');
+            print('Advanced deduplication: ${components.length} -> ${uniqueComponents.length} components');
             return uniqueComponents;
           }
           EOF
@@ -1245,6 +1253,88 @@ jobs:
           import json
           import sys
           from datetime import datetime
+          
+          def filter_github_actions(components):
+              """Filter out GitHub Actions and CI/CD tools"""
+              filtered = []
+              github_patterns = [
+                  'pkg:github/', 'pkg:actions/', 'pkg:aquasecurity/',
+                  'actions/cache', 'actions/checkout', 'actions/download-artifact',
+                  'actions/upload-artifact', 'actions/github-script',
+                  'aquasecurity/trivy-action', 'github/codeql-action',
+                  'subosito/flutter-action'
+              ]
+              
+              for comp in components:
+                purl = comp.get('purl', '')
+                name = comp.get('name', '')
+                
+                # Skip GitHub Actions and CI/CD tools
+                skip = False
+                for pattern in github_patterns:
+                    if pattern in purl or pattern in name:
+                        skip = True
+                        break
+                
+                if not skip:
+                    filtered.append(comp)
+              
+              return filtered
+          
+          def advanced_deduplication(components):
+              """Advanced deduplication with better component selection"""
+              seen = {}
+              unique_components = []
+              
+              for comp in components:
+                  name = comp.get('name')
+                  version = comp.get('version')
+                  if not name or not version:
+                      continue
+                      
+                  key = f"{name}@{version}"
+                  
+                  if key not in seen:
+                      seen[key] = comp
+                      unique_components.append(comp)
+                  else:
+                      # Keep the component with more detailed information
+                      existing = seen[key]
+                      existing_props = len(existing.get('properties', []))
+                      current_props = len(comp.get('properties', []))
+                      
+                      if current_props > existing_props:
+                          # Replace with more detailed component
+                          seen[key] = comp
+                          for i, uc in enumerate(unique_components):
+                              if uc.get('name') == name and uc.get('version') == version:
+                                  unique_components[i] = comp
+                                  break
+              
+              return unique_components
+          
+          def smart_merge_sboms(flutter_sbom, syft_sbom):
+              """Smart merge with priority to Flutter components"""
+              flutter_components = flutter_sbom.get('components', [])
+              syft_components = syft_sbom.get('components', [])
+              
+              # Filter Syft components (remove GitHub Actions and duplicates)
+              filtered_syft = filter_github_actions(syft_components)
+              
+              # Create Flutter component name set for deduplication
+              flutter_names = {c.get('name', '') for c in flutter_components}
+              
+              # Only add Syft components not already in Flutter SBOM
+              additional_syft = []
+              for comp in filtered_syft:
+                  if comp.get('name') not in flutter_names:
+                      additional_syft.append(comp)
+              
+              # Combine and deduplicate
+              all_components = flutter_components + additional_syft
+              final_components = advanced_deduplication(all_components)
+              
+              return final_components
           
           def merge_sboms(syft_file, flutter_file, output_file):
               # Load SBOMs
@@ -1271,7 +1361,7 @@ jobs:
                           {
                               'vendor': 'Flutter Security Scanner',
                               'name': 'enhanced-flutter-sbom-generator',
-                              'version': '2.0.0'
+                              'version': '2.1.0'
                           }
                       ],
                       'component': flutter_sbom['metadata']['component']
@@ -1279,41 +1369,122 @@ jobs:
                   'components': []
               }
               
-              # Track processed components to avoid duplicates
-              processed_components = set()
-              merged_components = []
-              
-              # Process Flutter components first (more accurate for Dart ecosystem)
-              for component in flutter_sbom.get('components', []):
-                  purl = component.get('purl', '')
-                  if purl and purl not in processed_components:
-                      processed_components.add(purl)
-                      merged_components.append(component)
-              
-              # Add Syft components that aren't already covered
-              for component in syft_sbom.get('components', []):
-                  purl = component.get('purl', '')
-                  if purl and purl not in processed_components:
-                      processed_components.add(purl)
-                      merged_components.append(component)
-              
+              # Smart merge with filtering and deduplication
+              merged_components = smart_merge_sboms(flutter_sbom, syft_sbom)
               merged_sbom['components'] = merged_components
               
               # Write merged SBOM
               with open(output_file, 'w') as f:
                   json.dump(merged_sbom, f, indent=2)
               
-              print(f'Successfully merged SBOMs')
-              print(f'Total components: {len(merged_components)}')
-              print(f'Flutter components: {len(flutter_sbom.get("components", []))}')
-              print(f'Syft components: {len(syft_sbom.get("components", []))}')
-              print(f'Unique components: {len(processed_components)}')
+              # Print detailed statistics
+              original_syft = len(syft_sbom.get('components', []))
+              filtered_syft = len(filter_github_actions(syft_sbom.get('components', [])))
+              flutter_count = len(flutter_sbom.get('components', []))
+              final_count = len(merged_components)
+              
+              print(f'=== SBOM Merge Statistics ===')
+              print(f'Original Syft components: {original_syft}')
+              print(f'Filtered Syft components: {filtered_syft}')
+              print(f'Flutter components: {flutter_count}')
+              print(f'Final merged components: {final_count}')
+              print(f'GitHub Actions removed: {original_syft - filtered_syft}')
+              print(f'Deduplication effect: {flutter_count + filtered_syft - final_count}')
+              print(f'=== End Statistics ===')
           
           if __name__ == '__main__':
               merge_sboms('syft-sbom.json', 'enhanced-flutter-sbom.json', 'enhanced-sbom.json')
           EOF
           
           python3 merge-enhanced-sboms.py
+          
+          # Validate SBOM quality
+          cat > validate-sbom-quality.py << 'EOF'
+          import json
+          import sys
+          
+          def validate_sbom_quality(sbom_file):
+              with open(sbom_file, 'r') as f:
+                  sbom = json.load(f)
+              
+              components = sbom.get('components', [])
+              
+              # Check for GitHub Actions
+              github_actions = []
+              for comp in components:
+                  purl = comp.get('purl', '')
+                  name = comp.get('name', '')
+                  if any(pattern in purl or pattern in name for pattern in 
+                         ['pkg:github/', 'pkg:actions/', 'actions/', 'github/']):
+                      github_actions.append(f"{name}@{comp.get('version', 'unknown')}")
+              
+              # Check for duplicates
+              seen = {}
+              duplicates = []
+              for comp in components:
+                  name = comp.get('name')
+                  version = comp.get('version')
+                  if name and version:
+                      key = f"{name}@{version}"
+                      if key in seen:
+                          duplicates.append(key)
+                      else:
+                          seen[key] = comp
+              
+              # Check scope distribution
+              scopes = {}
+              for comp in components:
+                  scope = comp.get('scope', 'unknown')
+                  scopes[scope] = scopes.get(scope, 0) + 1
+              
+              # Check platform distribution
+              platforms = {}
+              for comp in components:
+                  purl = comp.get('purl', '')
+                  platform = 'unknown'
+                  if 'pkg:pub/' in purl:
+                      platform = 'dart'
+                  elif 'pkg:maven/' in purl:
+                      platform = 'android'
+                  elif 'pkg:cocoapods/' in purl:
+                      platform = 'ios'
+                  platforms[platform] = platforms.get(platform, 0) + 1
+              
+              print("=== SBOM Quality Validation ===")
+              print(f"Total components: {len(components)}")
+              print(f"GitHub Actions found: {len(github_actions)}")
+              if github_actions:
+                  print(f"  - {', '.join(github_actions)}")
+              print(f"Duplicates found: {len(duplicates)}")
+              if duplicates:
+                  print(f"  - {', '.join(duplicates)}")
+              print(f"Scope distribution: {scopes}")
+              print(f"Platform distribution: {platforms}")
+              
+              # Quality score
+              score = 100
+              if github_actions:
+                  score -= len(github_actions) * 10
+              if duplicates:
+                  score -= len(duplicates) * 5
+              if scopes.get('unknown', 0) > 0:
+                  score -= scopes['unknown'] * 2
+              
+              print(f"Quality score: {score}/100")
+              
+              if score < 80:
+                  print("❌ SBOM quality issues detected")
+                  return False
+              else:
+                  print("✅ SBOM quality is good")
+                  return True
+          
+          if __name__ == '__main__':
+              success = validate_sbom_quality('enhanced-sbom.json')
+              sys.exit(0 if success else 1)
+          EOF
+          
+          python3 validate-sbom-quality.py
           
           # Generate comprehensive dependency analysis
           cat > generate-dependency-analysis.py << 'EOF'
@@ -1583,8 +1754,6 @@ jobs:
                       platform = 'javascript'
                   elif 'pkg:pypi/' in comp_purl:
                       platform = 'python'
-                  elif 'pkg:github/' in comp_purl or 'pkg:actions/' in comp_purl:
-                      platform = 'ci_cd'  # Mark CI/CD tools separately
                   
                   analysis['summary']['by_platform'][platform] = analysis['summary']['by_platform'].get(platform, 0) + 1
                   
@@ -1598,8 +1767,6 @@ jobs:
                       source = 'cocoapods'
                   elif 'pkg:git/' in comp_purl:
                       source = 'git'
-                  elif 'pkg:github/' in comp_purl or 'pkg:actions/' in comp_purl:
-                      source = 'ci_cd'  # Mark CI/CD tools separately
                   
                   analysis['summary']['by_source'][source] = analysis['summary']['by_source'].get(source, 0) + 1
                   
