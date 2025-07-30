@@ -173,13 +173,13 @@ dependency-vulnerability-scan:
 ```yaml
 # Parallel SAST matrix
 sast-scan:
-  strategy:
-    matrix:
-      include:
-        - tool: semgrep
+strategy:
+  matrix:
+    include:
+      - tool: semgrep
           config: 'p/security-audit p/owasp-top-ten auto'
-        - tool: flutter-analyzer
-        - tool: dcm
+      - tool: flutter-analyzer
+      - tool: dcm
   timeout-minutes: ${{ matrix.timeout }}
 ```
 

@@ -215,250 +215,6 @@ jobs:
           import 'dart:convert';
           import 'dart:convert' show utf8;
           
-          void main() async {
-            try {
-              // Validate Flutter environment
-              final flutterResult = await Process.run('flutter', ['--version']);
-              if (flutterResult.exitCode != 0) {
-                print('Error: Flutter not available');
-                exit(1);
-              }
-              
-              // Run flutter pub deps command with detailed output
-              final result = await Process.run('flutter', ['pub', 'deps', '--json']);
-              if (result.exitCode != 0) {
-                print('Error running flutter pub deps: ${result.stderr}');
-                exit(1);
-              }
-              
-              // Validate JSON output
-              if (result.stdout.toString().trim().isEmpty) {
-                print('Error: Empty output from flutter pub deps');
-                exit(1);
-              }
-              
-              final depsData = json.decode(result.stdout);
-              
-              // Read pubspec.yaml for metadata
-              final pubspecFile = File('pubspec.yaml');
-              final pubspecContent = await pubspecFile.readAsString();
-              
-              // Enhanced parsing of pubspec.yaml
-              Map<String, dynamic> pubspecInfo = parsePubspecYaml(pubspecContent);
-              
-              // Generate enhanced SBOM
-              final sbom = {
-                'bomFormat': 'CycloneDX',
-                'specVersion': '1.4',
-                'serialNumber': 'urn:uuid:${DateTime.now().millisecondsSinceEpoch}',
-                'version': 1,
-                'metadata': {
-                  'timestamp': DateTime.now().toIso8601String(),
-                  'tools': [{
-                    'vendor': 'Flutter Security Scanner',
-                    'name': 'enhanced-flutter-sbom-generator',
-                    'version': '2.0.0'
-                  }],
-                  'component': {
-                    'type': 'application',
-                    'bom-ref': pubspecInfo['name'] ?? 'unknown',
-                    'name': pubspecInfo['name'] ?? 'unknown',
-                    'version': pubspecInfo['version'] ?? '0.0.0',
-                    'description': pubspecInfo['description'] ?? '',
-                    'licenses': pubspecInfo['license'] != null ? [{
-                      'license': {
-                        'id': pubspecInfo['license'],
-                        'name': pubspecInfo['license']
-                      }
-                    }] : [],
-                    'properties': [
-                      {
-                        'name': 'flutter:version',
-                        'value': await getFlutterVersion()
-                      },
-                      {
-                        'name': 'dart:version',
-                        'value': await getDartVersion()
-                      },
-                      {
-                        'name': 'build:platforms',
-                        'value': pubspecInfo['platforms']?.toString() ?? '{}'
-                      }
-                    ]
-                  }
-                },
-                'components': []
-              };
-              
-              // Process dependencies with enhanced metadata
-              final components = <Map<String, dynamic>>[];
-              final processedPackages = <String>{};
-              final processedPurls = <String>{};
-              
-              for (var package in depsData['packages']) {
-                final packageName = package['name'];
-                final packageVersion = package['version'];
-                final packageKey = '$packageName@$packageVersion';
-                
-                // Skip if already processed
-                if (processedPackages.contains(packageKey)) continue;
-                
-                // Skip GitHub Actions and CI/CD tools
-                if (packageName.contains('actions/') || 
-                    packageName.contains('github/') ||
-                    packageName.contains('aquasecurity/') ||
-                    packageName.contains('subosito/')) {
-                  continue;
-                }
-                
-                // Skip application itself - app shouldn't be its own dependency
-                if (packageName == pubspecInfo['name']) {
-                  print('Skipping application itself: $packageName');
-                  continue;
-                }
-                
-                processedPackages.add(packageKey);
-                  final purl = 'pkg:pub/$packageName@$packageVersion';
-                  
-                  // Skip if PURL already processed (prevents duplicates with query params)
-                  if (processedPurls.contains(purl)) continue;
-                  processedPurls.add(purl);
-                  
-                  final component = {
-                    'type': 'library',
-                    'bom-ref': purl,
-                    'name': packageName,
-                    'version': packageVersion,
-                    'purl': purl,
-                    'scope': package['kind'] == 'direct' ? 'required' : 'optional',
-                    'properties': [
-                      {
-                        'name': 'dependency:type',
-                        'value': package['kind'] ?? 'unknown'
-                      },
-                      {
-                        'name': 'dependency:source',
-                        'value': package['source'] ?? 'hosted'
-                      }
-                    ]
-                  };
-                  
-                  // Add license information if available
-                  if (package['license'] != null) {
-                    component['licenses'] = [{
-                      'license': {
-                        'id': package['license'],
-                        'name': package['license']
-                      }
-                    }];
-                  }
-                  
-                  // Add author information if available
-                  if (package['authors'] != null) {
-                    component['authors'] = package['authors'];
-                  }
-                  
-                  // Add description if available
-                  if (package['description'] != null) {
-                    component['description'] = package['description'];
-                  }
-                  
-                  // Enhance Git dependencies with commit hash
-                  await enhanceGitDependencies(component);
-                  
-                  // Add package hashes for integrity
-                  await addPackageHashes(component);
-                  
-                  components.add(component);
-                }
-              }
-              
-              // Add transitive dependencies
-              await addTransitiveDependencies(components, processedPackages);
-              
-              // Add native dependencies
-              await addNativeDependencies(components, processedPackages);
-              
-              // Add build dependencies
-              await addBuildDependencies(components, processedPackages, pubspecInfo);
-              
-              // Add Web platform dependencies
-              await addWebDependencies(components, processedPackages);
-              
-              // Add platform-specific dependencies
-              await addPlatformSpecificDependencies(components, processedPackages);
-              
-              // Add plugin native dependencies
-              await addPluginNativeDependencies(components, processedPackages);
-              
-              // Add runtime dependencies
-              await addRuntimeDependencies(components, processedPackages);
-              
-              // Add build toolchain
-              await addBuildToolchain(sbom);
-              
-              // Final deduplication to ensure no duplicates
-              sbom['components'] = deduplicateComponents(components);
-              
-              // Write enhanced SBOM
-              final sbomFile = File('enhanced-flutter-sbom.json');
-              await sbomFile.writeAsString(
-                JsonEncoder.withIndent('  ').convert(sbom)
-              );
-              print('Enhanced Flutter SBOM generated successfully');
-              print('Total components: ${components.length}');
-              print('Processed packages: ${processedPackages.length}');
-              
-              // Validate component count consistency
-              final uniqueCount = deduplicateComponents(components).length;
-              print('Unique components after deduplication: $uniqueCount');
-              if (components.length != uniqueCount) {
-                print('⚠️ Warning: Duplicate components detected in initial generation');
-              }
-              
-              // Print detailed statistics
-              print('\n=== SBOM Statistics ===');
-              final byScope = <String, int>{};
-              final byPlatform = <String, int>{};
-              final bySource = <String, int>{};
-              
-              for (final component in components) {
-                final scope = component['scope'] ?? 'unknown';
-                byScope[scope] = (byScope[scope] ?? 0) + 1;
-                
-                final purl = component['purl'] ?? '';
-                String platform = 'unknown';
-                String source = 'unknown';
-                
-                if (purl.contains('pkg:pub/')) {
-                  platform = 'dart';
-                  source = 'pub.dev';
-                } else if (purl.contains('pkg:maven/')) {
-                  platform = 'android';
-                  source = 'maven';
-                } else if (purl.contains('pkg:cocoapods/')) {
-                  platform = 'ios';
-                  source = 'cocoapods';
-                } else if (purl.contains('pkg:git/')) {
-                  platform = 'git';
-                  source = 'git';
-                }
-                
-                byPlatform[platform] = (byPlatform[platform] ?? 0) + 1;
-                bySource[source] = (bySource[source] ?? 0) + 1;
-              }
-              
-              print('By Scope: $byScope');
-              print('By Platform: $byPlatform');
-              print('By Source: $bySource');
-              print('=== End Statistics ===');
-            } catch (e, stack) {
-              print('Error generating enhanced Flutter SBOM: $e');
-              print('Stack trace: $stack');
-              exit(1);
-            }
-          }
-          
           // Enhanced YAML parsing with error handling
           Map<String, dynamic> parsePubspecYaml(String content) {
             try {
@@ -1287,6 +1043,250 @@ jobs:
             
             print('Advanced deduplication: ${components.length} -> ${uniqueComponents.length} components');
             return uniqueComponents;
+          }
+          
+          void main() async {
+            try {
+              // Validate Flutter environment
+              final flutterResult = await Process.run('flutter', ['--version']);
+              if (flutterResult.exitCode != 0) {
+                print('Error: Flutter not available');
+                exit(1);
+              }
+              
+              // Run flutter pub deps command with detailed output
+              final result = await Process.run('flutter', ['pub', 'deps', '--json']);
+              if (result.exitCode != 0) {
+                print('Error running flutter pub deps: ${result.stderr}');
+                exit(1);
+              }
+              
+              // Validate JSON output
+              if (result.stdout.toString().trim().isEmpty) {
+                print('Error: Empty output from flutter pub deps');
+                exit(1);
+              }
+              
+              final depsData = json.decode(result.stdout);
+              
+              // Read pubspec.yaml for metadata
+              final pubspecFile = File('pubspec.yaml');
+              final pubspecContent = await pubspecFile.readAsString();
+              
+              // Enhanced parsing of pubspec.yaml
+              Map<String, dynamic> pubspecInfo = parsePubspecYaml(pubspecContent);
+              
+              // Generate enhanced SBOM
+              final sbom = {
+                'bomFormat': 'CycloneDX',
+                'specVersion': '1.4',
+                'serialNumber': 'urn:uuid:${DateTime.now().millisecondsSinceEpoch}',
+                'version': 1,
+                'metadata': {
+                  'timestamp': DateTime.now().toIso8601String(),
+                  'tools': [{
+                    'vendor': 'Flutter Security Scanner',
+                    'name': 'enhanced-flutter-sbom-generator',
+                    'version': '2.0.0'
+                  }],
+                  'component': {
+                    'type': 'application',
+                    'bom-ref': pubspecInfo['name'] ?? 'unknown',
+                    'name': pubspecInfo['name'] ?? 'unknown',
+                    'version': pubspecInfo['version'] ?? '0.0.0',
+                    'description': pubspecInfo['description'] ?? '',
+                    'licenses': pubspecInfo['license'] != null ? [{
+                      'license': {
+                        'id': pubspecInfo['license'],
+                        'name': pubspecInfo['license']
+                      }
+                    }] : [],
+                    'properties': [
+                      {
+                        'name': 'flutter:version',
+                        'value': await getFlutterVersion()
+                      },
+                      {
+                        'name': 'dart:version',
+                        'value': await getDartVersion()
+                      },
+                      {
+                        'name': 'build:platforms',
+                        'value': pubspecInfo['platforms']?.toString() ?? '{}'
+                      }
+                    ]
+                  }
+                },
+                'components': []
+              };
+              
+              // Process dependencies with enhanced metadata
+              final components = <Map<String, dynamic>>[];
+              final processedPackages = <String>{};
+              final processedPurls = <String>{};
+              
+              for (var package in depsData['packages']) {
+                final packageName = package['name'];
+                final packageVersion = package['version'];
+                final packageKey = '$packageName@$packageVersion';
+                
+                // Skip if already processed
+                if (processedPackages.contains(packageKey)) continue;
+                
+                // Skip GitHub Actions and CI/CD tools
+                if (packageName.contains('actions/') || 
+                    packageName.contains('github/') ||
+                    packageName.contains('aquasecurity/') ||
+                    packageName.contains('subosito/')) {
+                  continue;
+                }
+                
+                // Skip application itself - app shouldn't be its own dependency
+                if (packageName == pubspecInfo['name']) {
+                  print('Skipping application itself: $packageName');
+                  continue;
+                }
+                
+                processedPackages.add(packageKey);
+                final purl = 'pkg:pub/$packageName@$packageVersion';
+                
+                // Skip if PURL already processed (prevents duplicates with query params)
+                if (processedPurls.contains(purl)) continue;
+                processedPurls.add(purl);
+                
+                final component = {
+                    'type': 'library',
+                    'bom-ref': purl,
+                    'name': packageName,
+                    'version': packageVersion,
+                    'purl': purl,
+                    'scope': package['kind'] == 'direct' ? 'required' : 'optional',
+                    'properties': [
+                      {
+                        'name': 'dependency:type',
+                        'value': package['kind'] ?? 'unknown'
+                      },
+                      {
+                        'name': 'dependency:source',
+                        'value': package['source'] ?? 'hosted'
+                      }
+                    ]
+                  };
+                  
+                  // Add license information if available
+                  if (package['license'] != null) {
+                    component['licenses'] = [{
+                      'license': {
+                        'id': package['license'],
+                        'name': package['license']
+                      }
+                    }];
+                  }
+                  
+                  // Add author information if available
+                  if (package['authors'] != null) {
+                    component['authors'] = package['authors'];
+                  }
+                  
+                  // Add description if available
+                  if (package['description'] != null) {
+                    component['description'] = package['description'];
+                  }
+                  
+                  // Enhance Git dependencies with commit hash
+                  await enhanceGitDependencies(component);
+                  
+                  // Add package hashes for integrity
+                  await addPackageHashes(component);
+                  
+                  components.add(component);
+                }
+              }
+              
+              // Add transitive dependencies
+              await addTransitiveDependencies(components, processedPackages);
+              
+              // Add native dependencies
+              await addNativeDependencies(components, processedPackages);
+              
+              // Add build dependencies
+              await addBuildDependencies(components, processedPackages, pubspecInfo);
+              
+              // Add Web platform dependencies
+              await addWebDependencies(components, processedPackages);
+              
+              // Add platform-specific dependencies
+              await addPlatformSpecificDependencies(components, processedPackages);
+              
+              // Add plugin native dependencies
+              await addPluginNativeDependencies(components, processedPackages);
+              
+              // Add runtime dependencies
+              await addRuntimeDependencies(components, processedPackages);
+              
+              // Add build toolchain
+              await addBuildToolchain(sbom);
+              
+              // Final deduplication to ensure no duplicates
+              sbom['components'] = deduplicateComponents(components);
+              
+              // Write enhanced SBOM
+              final sbomFile = File('enhanced-flutter-sbom.json');
+              await sbomFile.writeAsString(
+                JsonEncoder.withIndent('  ').convert(sbom)
+              );
+              print('Enhanced Flutter SBOM generated successfully');
+              print('Total components: ${components.length}');
+              print('Processed packages: ${processedPackages.length}');
+              
+              // Validate component count consistency
+              final uniqueCount = deduplicateComponents(components).length;
+              print('Unique components after deduplication: $uniqueCount');
+              if (components.length != uniqueCount) {
+                print('⚠️ Warning: Duplicate components detected in initial generation');
+              }
+              
+              // Print detailed statistics
+              print('\n=== SBOM Statistics ===');
+              final byScope = <String, int>{};
+              final byPlatform = <String, int>{};
+              final bySource = <String, int>{};
+              
+              for (final component in components) {
+                final scope = component['scope'] ?? 'unknown';
+                byScope[scope] = (byScope[scope] ?? 0) + 1;
+                
+                final purl = component['purl'] ?? '';
+                String platform = 'unknown';
+                String source = 'unknown';
+                
+                if (purl.contains('pkg:pub/')) {
+                  platform = 'dart';
+                  source = 'pub.dev';
+                } else if (purl.contains('pkg:maven/')) {
+                  platform = 'android';
+                  source = 'maven';
+                } else if (purl.contains('pkg:cocoapods/')) {
+                  platform = 'ios';
+                  source = 'cocoapods';
+                } else if (purl.contains('pkg:git/')) {
+                  platform = 'git';
+                  source = 'git';
+                }
+                
+                byPlatform[platform] = (byPlatform[platform] ?? 0) + 1;
+                bySource[source] = (bySource[source] ?? 0) + 1;
+              }
+              
+              print('By Scope: $byScope');
+              print('By Platform: $byPlatform');
+              print('By Source: $bySource');
+              print('=== End Statistics ===');
+            } catch (e, stack) {
+              print('Error generating enhanced Flutter SBOM: $e');
+              print('Stack trace: $stack');
+              exit(1);
+            }
           }
           EOF
 
@@ -2560,7 +2560,7 @@ jobs:
                   await File("flutter-analyzer-results.sarif").writeAsString(
                       JsonEncoder.withIndent("  ").convert(sarif));
                 }
-              EOF
+          EOF
               
               dart run convert-to-sarif.dart
               ;;
