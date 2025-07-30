@@ -1205,6 +1205,7 @@ jobs:
           import json
           import subprocess
           import sys
+          from datetime import datetime
           
           def analyze_dependencies():
               # Load enhanced SBOM
@@ -2380,4 +2381,4 @@ jobs:
           echo "- Unified Security Report"
           echo ""
           echo "View detailed results in GitHub Security tab and workflow artifacts"
-          echo "================================================
+          echo "================================================"
