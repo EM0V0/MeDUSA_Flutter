@@ -1806,87 +1806,8 @@ jobs:
                 echo "Flutter analyzer found issues"
                 touch ${{ matrix.tool }}-results.txt
               }
-              # Convert to SARIF format
-              cat > convert-to-sarif.dart << 'EOFD'
-              import 'dart:io';
-              import 'dart:convert';
-              
-              void main() async {
-                final input = File('flutter-analyzer-results.txt');
-                if (!await input.exists()) {
-                  // Create empty SARIF
-                  final emptySarif = {
-                    'version': '2.1.0',
-                    '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
-                    'runs': [{
-                      'tool': {
-                        'driver': {
-                          'name': 'flutter-analyzer',
-                          'version': '1.0.0'
-                        }
-                      },
-                      'results': []
-                    }]
-                  };
-                  await File('flutter-analyzer-results.sarif').writeAsString(
-                    JsonEncoder.withIndent('  ').convert(emptySarif)
-                  );
-                  return;
-                }
-                
-                final lines = await input.readAsLines();
-                final results = [];
-                
-                for (final line in lines) {
-                  if (line.contains('•')) {
-                    final parts = line.split('•');
-                    if (parts.length >= 3) {
-                      final location = parts[0].trim();
-                      final severity = parts[1].trim();
-                      final message = parts[2].trim();
-                      
-                      // Parse file path and line number
-                      final locationParts = location.split(':');
-                      if (locationParts.length >= 2) {
-                        results.add({
-                          'ruleId': 'flutter-analyzer',
-                          'level': severity.toLowerCase() == 'error' ? 'error' : 'warning',
-                          'message': {'text': message},
-                          'locations': [{
-                            'physicalLocation': {
-                              'artifactLocation': {
-                                'uri': locationParts[0]
-                              },
-                              'region': {
-                                'startLine': int.tryParse(locationParts[1]) ?? 1
-                              }
-                            }
-                          }]
-                        });
-                      }
-                    }
-                  }
-                }
-                
-                final sarif = {
-                  'version': '2.1.0',
-                  '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
-                  'runs': [{
-                    'tool': {
-                      'driver': {
-                        'name': 'flutter-analyzer',
-                        'version': '1.0.0'
-                      }
-                    },
-                    'results': results
-                  }]
-                };
-                
-                await File('flutter-analyzer-results.sarif').writeAsString(
-                  JsonEncoder.withIndent('  ').convert(sarif)
-                );
-              }
-              EOFD
+              # Convert to SARIF format using a simple approach
+              echo 'import "dart:io"; import "dart:convert"; void main() async { final input = File("flutter-analyzer-results.txt"); if (!await input.exists()) { final emptySarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": []}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(emptySarif)); return; } final lines = await input.readAsLines(); final results = []; for (final line in lines) { if (line.contains("•")) { final parts = line.split("•"); if (parts.length >= 3) { final location = parts[0].trim(); final severity = parts[1].trim(); final message = parts[2].trim(); final locationParts = location.split(":"); if (locationParts.length >= 2) { results.add({"ruleId": "flutter-analyzer", "level": severity.toLowerCase() == "error" ? "error" : "warning", "message": {"text": message}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": locationParts[0]}, "region": {"startLine": int.tryParse(locationParts[1]) ?? 1}}}]}); } } } } final sarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": results}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(sarif)); }' > convert-to-sarif.dart
               
               dart run convert-to-sarif.dart
               ;;
@@ -1931,103 +1852,33 @@ jobs:
       - name: License compliance check
         run: |
           # Create license check script
-          cat > check-licenses.py << 'EOF'
-          import json
-          import sys
-          from datetime import datetime
-          
-          # Prohibited licenses
-          PROHIBITED_LICENSES = [
-              'GPL', 'GPL-2.0', 'GPL-3.0', 
-              'AGPL', 'AGPL-3.0',
-              'LGPL', 'LGPL-2.1', 'LGPL-3.0',
-              'SSPL', 'OSL'
-          ]
-          
-          # Warning licenses
-          WARNING_LICENSES = [
-              'MPL', 'MPL-2.0',
-              'CC-BY-SA', 'CC-BY-NC'
-          ]
-          
-          def check_licenses(sbom_file):
-              with open(sbom_file, 'r') as f:
-                  sbom = json.load(f)
-              
-              report = {
-                  'timestamp': datetime.now().isoformat(),
-                  'compliant': True,
-                  'violations': [],
-                  'warnings': [],
-                  'summary': {
-                      'total_packages': 0,
-                      'prohibited_licenses': 0,
-                      'warning_licenses': 0
-                  }
-              }
-              
-              components = sbom.get('components', [])
-              report['summary']['total_packages'] = len(components)
-              
-              for component in components:
-                  name = component.get('name', 'unknown')
-                  version = component.get('version', 'unknown')
-                  licenses = component.get('licenses', [])
-                  
-                  for license_info in licenses:
-                      license_id = license_info.get('license', {}).get('id', '')
-                      
-                      if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
-                          report['violations'].append({
-                              'package': name,
-                              'version': version,
-                              'license': license_id,
-                              'severity': 'HIGH'
-                          })
-                          report['summary']['prohibited_licenses'] += 1
-                          report['compliant'] = False
-                      elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
-                          report['warnings'].append({
-                              'package': name,
-                              'version': version,
-                              'license': license_id,
-                              'severity': 'MEDIUM'
-                          })
-                          report['summary']['warning_licenses'] += 1
-              
-              with open('license-compliance-report.json', 'w') as f:
-                  json.dump(report, f, indent=2)
-              
-              print(f"License compliance check completed")
-              print(f"Total packages: {report['summary']['total_packages']}")
-              print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
-              print(f"Warning licenses: {report['summary']['warning_licenses']}")
-              
-              return report['compliant']
-          
-          if __name__ == '__main__':
-              compliant = check_licenses('sbom.json')
-              sys.exit(0 if compliant else 1)
-          EOF
+          echo 'import json; import sys; from datetime import datetime; PROHIBITED_LICENSES = ["GPL", "GPL-2.0", "GPL-3.0", "AGPL", "AGPL-3.0", "LGPL", "LGPL-2.1", "LGPL-3.0", "SSPL", "OSL"]; WARNING_LICENSES = ["MPL", "MPL-2.0", "CC-BY-SA", "CC-BY-NC"]; def check_licenses(sbom_file): exec("with open(sbom_file, \"r\") as f: sbom = json.load(f); report = {\"timestamp\": datetime.now().isoformat(), \"compliant\": True, \"violations\": [], \"warnings\": [], \"summary\": {\"total_packages\": 0, \"prohibited_licenses\": 0, \"warning_licenses\": 0}}; components = sbom.get(\"components\", []); report[\"summary\"][\"total_packages\"] = len(components); [report[\"violations\"].append({\"package\": component.get(\"name\", \"unknown\"), \"version\": component.get(\"version\", \"unknown\"), \"license\": license_info.get(\"license\", {}).get(\"id\", \"\"), \"severity\": \"HIGH\"}) or report[\"summary\"][\"prohibited_licenses\"].__iadd__(1) or setattr(report, \"compliant\", False) for component in components for license_info in component.get(\"licenses\", []) if any(prohibited in license_info.get(\"license\", {}).get(\"id\", \"\").upper() for prohibited in PROHIBITED_LICENSES)]; [report[\"warnings\"].append({\"package\": component.get(\"name\", \"unknown\"), \"version\": component.get(\"version\", \"unknown\"), \"license\": license_info.get(\"license\", {}).get(\"id\", \"\"), \"severity\": \"MEDIUM\"}) or report[\"summary\"][\"warning_licenses\"].__iadd__(1) for component in components for license_info in component.get(\"licenses\", []) if any(warning in license_info.get(\"license\", {}).get(\"id\", \"\").upper() for warning in WARNING_LICENSES)]; with open(\"license-compliance-report.json\", \"w\") as f: json.dump(report, f, indent=2); print(f\"License compliance check completed\"); print(f\"Total packages: {report[\"summary\"][\"total_packages\"]}\"); print(f\"Prohibited licenses: {report[\"summary\"][\"prohibited_licenses\"]}\"); print(f\"Warning licenses: {report[\"summary\"][\"warning_licenses\"]}\"); return report[\"compliant\"]"); exec("compliant = check_licenses(\"enhanced-sbom.json\"); sys.exit(0 if compliant else 1)")' > check-licenses.py
           
           python3 check-licenses.py || echo "License compliance issues found"
           
       - name: Secret scanning
         run: |
-          # Install and run TruffleHog
-          pip install trufflesecurity-trufflehog
+          # 使用官方安装脚本安装 TruffleHog
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
           
-          trufflehog filesystem . --json > secret-scan-results.json || {
+          # 验证安装
+          trufflehog --version
+          
+          # 运行扫描
+          trufflehog filesystem . --json --no-verification > secret-scan-results.json || {
             EXIT_CODE=$?
             echo "TruffleHog scan completed with exit code: $EXIT_CODE"
-            if [ ! -s "secret-scan-results.json" ]; then
-              echo '{"results": []}' > secret-scan-results.json
-            fi
           }
           
-          # Count secrets found
+          # 确保输出文件存在且有效
+          if [ ! -f "secret-scan-results.json" ] || [ ! -s "secret-scan-results.json" ]; then
+            echo '[]' > secret-scan-results.json
+          fi
+          
+          # 计算发现的秘密数量
           if [ -f "secret-scan-results.json" ]; then
-            SECRET_COUNT=$(grep -c '"SourceMetadata"' secret-scan-results.json || echo "0")
+            # TruffleHog v3 输出是 JSON 数组
+            SECRET_COUNT=$(jq 'length' secret-scan-results.json 2>/dev/null || echo "0")
             echo "Found $SECRET_COUNT potential secrets"
             if [ "$SECRET_COUNT" -gt 0 ]; then
               echo "::warning::Found $SECRET_COUNT potential secrets in the codebase"
