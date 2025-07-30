@@ -112,6 +112,24 @@ unified-security-report
 - Preserves all important metadata
 - Prevents conflicts and data loss
 
+#### Advanced Dependency Discovery
+- **Transitive Dependencies**: Complete resolution of nested dependencies
+- **Web Platform**: CDN JavaScript library detection
+- **Git Dependencies**: Commit hash tracking for integrity
+- **Plugin Native Dependencies**: Android/iOS native code in Flutter plugins
+- **Runtime Dependencies**: Dynamic library loading detection
+- **Multi-Platform Support**: Linux, Windows, macOS dependencies
+- **Package Integrity**: SHA-256 hash calculation for all packages
+- **Build Toolchain**: Complete tool version tracking (Flutter, Dart, Gradle, CocoaPods)
+
+#### Comprehensive Validation
+- **Completeness Check**: Validates against pubspec.yaml dependencies
+- **Platform Coverage**: Ensures all platform dependencies are included
+- **Transitive Dependency Validation**: Verifies nested dependency resolution
+- **Toolchain Verification**: Confirms build tool information
+- **Runtime Dependency Detection**: Identifies dynamic loading
+- **Coverage Scoring**: 0-100 score based on completeness metrics
+
 ### 3. Advanced Caching Strategy
 
 #### Pre-check Intelligence

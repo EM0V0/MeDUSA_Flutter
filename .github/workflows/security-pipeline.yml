@@ -305,15 +305,39 @@ jobs:
                     component['description'] = package['description'];
                   }
                   
+                  // Enhance Git dependencies with commit hash
+                  await enhanceGitDependencies(component);
+                  
+                  // Add package hashes for integrity
+                  await addPackageHashes(component);
+                  
                   components.add(component);
                 }
               }
+              
+              // Add transitive dependencies
+              await addTransitiveDependencies(components, processedPackages);
               
               // Add native dependencies
               await addNativeDependencies(components, processedPackages);
               
               // Add build dependencies
               await addBuildDependencies(components, processedPackages, pubspecInfo);
+              
+              // Add Web platform dependencies
+              await addWebDependencies(components, processedPackages);
+              
+              // Add platform-specific dependencies
+              await addPlatformSpecificDependencies(components, processedPackages);
+              
+              // Add plugin native dependencies
+              await addPluginNativeDependencies(components, processedPackages);
+              
+              // Add runtime dependencies
+              await addRuntimeDependencies(components, processedPackages);
+              
+              // Add build toolchain
+              await addBuildToolchain(sbom);
               
               sbom['components'] = components;
               
@@ -420,6 +444,63 @@ jobs:
               print('Error getting Dart version: $e');
             }
             return 'unknown';
+          }
+          
+          // Add transitive dependencies
+          Future<void> addTransitiveDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final packageConfigFile = File('.dart_tool/package_config.json');
+            if (await packageConfigFile.exists()) {
+              try {
+                final packageConfig = json.decode(await packageConfigFile.readAsString());
+                for (var package in packageConfig['packages']) {
+                  final packageName = package['name'];
+                  final packagePath = package['rootUri'];
+                  
+                  if (packagePath != null && packagePath.startsWith('file://')) {
+                    final pubspecPath = packagePath.replaceFirst('file://', '') + '/pubspec.yaml';
+                    final pubspecFile = File(pubspecPath);
+                    
+                    if (await pubspecFile.exists()) {
+                      final pubspecContent = await pubspecFile.readAsString();
+                      final pubspecInfo = parsePubspecYaml(pubspecContent);
+                      
+                      // Add transitive dependencies
+                      if (pubspecInfo['dependencies'] != null) {
+                        for (final entry in pubspecInfo['dependencies'].entries) {
+                          final depName = entry.key;
+                          final depVersion = entry.value;
+                          final packageKey = '$depName@$depVersion';
+                          
+                          if (!processedPackages.contains(packageKey)) {
+                            processedPackages.add(packageKey);
+                            components.add({
+                              'type': 'library',
+                              'bom-ref': 'pkg:pub/$depName@$depVersion',
+                              'name': depName,
+                              'version': depVersion,
+                              'purl': 'pkg:pub/$depName@$depVersion',
+                              'scope': 'optional',
+                              'properties': [
+                                {
+                                  'name': 'dependency:type',
+                                  'value': 'transitive'
+                                },
+                                {
+                                  'name': 'source:package',
+                                  'value': packageName
+                                }
+                              ]
+                            });
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                print('Error processing transitive dependencies: $e');
+              }
+            }
           }
           
           // Add native dependencies
@@ -533,6 +614,512 @@ jobs:
                 }
               }
             }
+          }
+          
+          // Add Web platform dependencies
+          Future<void> addWebDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final webDir = Directory('web');
+            if (await webDir.exists()) {
+              final indexFile = File('web/index.html');
+              if (await indexFile.exists()) {
+                final content = await indexFile.readAsString();
+                
+                // Detect CDN referenced JS libraries
+                final scriptTags = RegExp(r'<script[^>]+src="([^"]+)"[^>]*>').allMatches(content);
+                for (final match in scriptTags) {
+                  final src = match.group(1)!;
+                  if (src.contains('cdn') || src.startsWith('http')) {
+                    final libraryName = extractLibraryName(src);
+                    final version = extractVersion(src) ?? 'unknown';
+                    final packageKey = '$libraryName@$version';
+                    
+                    if (!processedPackages.contains(packageKey)) {
+                      processedPackages.add(packageKey);
+                      components.add({
+                        'type': 'library',
+                        'bom-ref': 'pkg:cdn/$libraryName@$version',
+                        'name': libraryName,
+                        'version': version,
+                        'purl': 'pkg:generic/$libraryName@$version',
+                        'scope': 'required',
+                        'properties': [
+                          {
+                            'name': 'platform',
+                            'value': 'web'
+                          },
+                          {
+                            'name': 'source',
+                            'value': 'cdn'
+                          },
+                          {
+                            'name': 'url',
+                            'value': src
+                          }
+                        ]
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Extract library name from CDN URL
+          String extractLibraryName(String url) {
+            final uri = Uri.parse(url);
+            final path = uri.path;
+            final fileName = path.split('/').last;
+            return fileName.split('.').first;
+          }
+          
+          // Extract version from CDN URL
+          String? extractVersion(String url) {
+            final versionMatch = RegExp(r'/(\d+\.\d+\.\d+)/').firstMatch(url);
+            return versionMatch?.group(1);
+          }
+          
+          // Add platform-specific dependencies
+          Future<void> addPlatformSpecificDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            // Linux platform
+            final linuxDir = Directory('linux');
+            if (await linuxDir.exists()) {
+              await parseLinuxDependencies(components, processedPackages);
+            }
+            
+            // Windows platform
+            final windowsDir = Directory('windows');
+            if (await windowsDir.exists()) {
+              await parseWindowsDependencies(components, processedPackages);
+            }
+            
+            // macOS platform
+            final macosDir = Directory('macos');
+            if (await macosDir.exists()) {
+              await parseMacOSDependencies(components, processedPackages);
+            }
+          }
+          
+          // Parse Linux dependencies
+          Future<void> parseLinuxDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final cmakeFile = File('linux/CMakeLists.txt');
+            if (await cmakeFile.exists()) {
+              final content = await cmakeFile.readAsString();
+              final dependencies = RegExp(r'find_package\(([^)]+)\)').allMatches(content);
+              
+              for (final match in dependencies) {
+                final depName = match.group(1)!;
+                final packageKey = '$depName@unknown';
+                
+                if (!processedPackages.contains(packageKey)) {
+                  processedPackages.add(packageKey);
+                  components.add({
+                    'type': 'library',
+                    'bom-ref': 'pkg:cmake/$depName',
+                    'name': depName,
+                    'version': 'unknown',
+                    'purl': 'pkg:cmake/$depName',
+                    'scope': 'required',
+                    'properties': [
+                      {
+                        'name': 'platform',
+                        'value': 'linux'
+                      }
+                    ]
+                  });
+                }
+              }
+            }
+          }
+          
+          // Parse Windows dependencies
+          Future<void> parseWindowsDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final cmakeFile = File('windows/flutter/generated_plugins.cmake');
+            if (await cmakeFile.exists()) {
+              final content = await cmakeFile.readAsString();
+              final dependencies = RegExp(r'list\(APPEND FLUTTER_PLUGIN_LIST ([^)]+)\)').allMatches(content);
+              
+              for (final match in dependencies) {
+                final depName = match.group(1)!;
+                final packageKey = '$depName@unknown';
+                
+                if (!processedPackages.contains(packageKey)) {
+                  processedPackages.add(packageKey);
+                  components.add({
+                    'type': 'library',
+                    'bom-ref': 'pkg:cmake/$depName',
+                    'name': depName,
+                    'version': 'unknown',
+                    'purl': 'pkg:cmake/$depName',
+                    'scope': 'required',
+                    'properties': [
+                      {
+                        'name': 'platform',
+                        'value': 'windows'
+                      }
+                    ]
+                  });
+                }
+              }
+            }
+          }
+          
+          // Parse macOS dependencies
+          Future<void> parseMacOSDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final podfile = File('macos/Podfile');
+            if (await podfile.exists()) {
+              final content = await podfile.readAsString();
+              final dependencies = RegExp(r'pod\s+[\'"]([^\'"]+)[\'"](?:\s*,\s*[\'"]([^\'"]+)[\'"])?').allMatches(content);
+              
+              for (final match in dependencies) {
+                final name = match.group(1)!;
+                final version = match.group(2) ?? 'unknown';
+                final packageKey = '$name@$version';
+                
+                if (!processedPackages.contains(packageKey)) {
+                  processedPackages.add(packageKey);
+                  components.add({
+                    'type': 'library',
+                    'bom-ref': 'pkg:cocoapods/$name@$version',
+                    'name': name,
+                    'version': version,
+                    'purl': 'pkg:cocoapods/$name@$version',
+                    'scope': 'required',
+                    'properties': [
+                      {
+                        'name': 'platform',
+                        'value': 'macos'
+                      }
+                    ]
+                  });
+                }
+              }
+            }
+          }
+          
+          // Add plugin native dependencies
+          Future<void> addPluginNativeDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final pubspecLock = File('pubspec.lock');
+            if (!await pubspecLock.exists()) return;
+            
+            try {
+              final lockContent = await pubspecLock.readAsString();
+              final lockData = parsePubspecLock(lockContent);
+              
+              for (var package in lockData['packages']) {
+                final packageName = package['name'];
+                final packageVersion = package['version'];
+                final packagePath = '.pub-cache/hosted/pub.dartlang.org/$packageName-$packageVersion';
+                
+                // Check Android native dependencies
+                final androidGradle = File('$packagePath/android/build.gradle');
+                if (await androidGradle.exists()) {
+                  final content = await androidGradle.readAsString();
+                  final dependencies = RegExp(r'implementation\s+[\'"]([^\'"]+)[\'"]').allMatches(content);
+                  
+                  for (final match in dependencies) {
+                    final dep = match.group(1)!;
+                    final parts = dep.split(':');
+                    if (parts.length >= 2) {
+                      final group = parts[0];
+                      final name = parts[1];
+                      final version = parts.length > 2 ? parts[2] : 'unknown';
+                      final packageKey = '$group:$name@$version';
+                      
+                      if (!processedPackages.contains(packageKey)) {
+                        processedPackages.add(packageKey);
+                        components.add({
+                          'type': 'library',
+                          'bom-ref': 'pkg:maven/$group/$name@$version',
+                          'name': name,
+                          'version': version,
+                          'purl': 'pkg:maven/$group/$name@$version',
+                          'scope': 'optional',
+                          'properties': [
+                            {
+                              'name': 'platform',
+                              'value': 'android'
+                            },
+                            {
+                              'name': 'source:plugin',
+                              'value': packageName
+                            }
+                          ]
+                        });
+                      }
+                    }
+                  }
+                }
+                
+                // Check iOS native dependencies
+                final iosPodspec = File('$packagePath/ios/$packageName.podspec');
+                if (await iosPodspec.exists()) {
+                  final content = await iosPodspec.readAsString();
+                  final dependencies = RegExp(r'\.dependency\s+[\'"]([^\'"]+)[\'"](?:\s*,\s*[\'"]([^\'"]+)[\'"])?').allMatches(content);
+                  
+                  for (final match in dependencies) {
+                    final name = match.group(1)!;
+                    final version = match.group(2) ?? 'unknown';
+                    final packageKey = '$name@$version';
+                    
+                    if (!processedPackages.contains(packageKey)) {
+                      processedPackages.add(packageKey);
+                      components.add({
+                        'type': 'library',
+                        'bom-ref': 'pkg:cocoapods/$name@$version',
+                        'name': name,
+                        'version': version,
+                        'purl': 'pkg:cocoapods/$name@$version',
+                        'scope': 'optional',
+                        'properties': [
+                          {
+                            'name': 'platform',
+                            'value': 'ios'
+                          },
+                          {
+                            'name': 'source:plugin',
+                            'value': packageName
+                          }
+                        ]
+                      });
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              print('Error processing plugin native dependencies: $e');
+            }
+          }
+          
+          // Parse pubspec.lock
+          Map<String, dynamic> parsePubspecLock(String content) {
+            final lines = content.split('\n');
+            final packages = <Map<String, dynamic>>[];
+            Map<String, dynamic>? currentPackage;
+            
+            for (final line in lines) {
+              final trimmedLine = line.trim();
+              if (trimmedLine.startsWith('packages:')) {
+                // Start of packages section
+              } else if (trimmedLine.startsWith('  ') && !trimmedLine.startsWith('    ')) {
+                // Package name
+                if (currentPackage != null) {
+                  packages.add(currentPackage);
+                }
+                final packageName = trimmedLine.replaceAll(':', '');
+                currentPackage = {'name': packageName};
+              } else if (trimmedLine.startsWith('    ') && currentPackage != null) {
+                // Package properties
+                if (trimmedLine.contains('version:')) {
+                  currentPackage!['version'] = trimmedLine.split(':')[1].trim();
+                } else if (trimmedLine.contains('source:')) {
+                  currentPackage!['source'] = trimmedLine.split(':')[1].trim();
+                } else if (trimmedLine.contains('resolved-ref:')) {
+                  currentPackage!['resolved-ref'] = trimmedLine.split(':')[1].trim();
+                }
+              }
+            }
+            
+            if (currentPackage != null) {
+              packages.add(currentPackage);
+            }
+            
+            return {'packages': packages};
+          }
+          
+          // Add runtime dependencies
+          Future<void> addRuntimeDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final libDir = Directory('lib');
+            if (await libDir.exists()) {
+              final dartFiles = await libDir.list(recursive: true).where((entity) => 
+                entity.path.endsWith('.dart')).toList();
+              
+              for (final file in dartFiles) {
+                if (file is File) {
+                  final content = await file.readAsString();
+                  
+                  // Detect DynamicLibrary.open() calls
+                  final dynamicLibs = RegExp(r'DynamicLibrary\.open\([\'"]([^\'"]+)[\'"]\)').allMatches(content);
+                  for (final match in dynamicLibs) {
+                    final lib = match.group(1)!;
+                    final packageKey = 'runtime:$lib';
+                    
+                    if (!processedPackages.contains(packageKey)) {
+                      processedPackages.add(packageKey);
+                      components.add({
+                        'type': 'library',
+                        'bom-ref': 'pkg:generic/$lib',
+                        'name': lib,
+                        'version': 'unknown',
+                        'purl': 'pkg:generic/$lib',
+                        'scope': 'optional',
+                        'properties': [
+                          {
+                            'name': 'load-type',
+                            'value': 'dynamic'
+                          },
+                          {
+                            'name': 'runtime',
+                            'value': 'true'
+                          }
+                        ]
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Enhance Git dependencies with commit hash
+          Future<void> enhanceGitDependencies(Map<String, dynamic> component) async {
+            if (component['purl']?.startsWith('pkg:git/') == true) {
+              final lockFile = File('pubspec.lock');
+              if (await lockFile.exists()) {
+                try {
+                  final lockContent = await lockFile.readAsString();
+                  final lockData = parsePubspecLock(lockContent);
+                  
+                  for (var package in lockData['packages']) {
+                    if (package['name'] == component['name'] && package['resolved-ref'] != null) {
+                      component['properties'] ??= [];
+                      component['properties'].add({
+                        'name': 'git:commit',
+                        'value': package['resolved-ref']
+                      });
+                      break;
+                    }
+                  }
+                } catch (e) {
+                  print('Error enhancing Git dependencies: $e');
+                }
+              }
+            }
+          }
+          
+          // Add package hashes
+          Future<void> addPackageHashes(Map<String, dynamic> component) async {
+            final packageName = component['name'];
+            final packageVersion = component['version'];
+            final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
+            
+            if (homeDir.isNotEmpty) {
+              final cachePath = '$homeDir/.pub-cache/hosted/pub.dartlang.org/$packageName-$packageVersion';
+              
+              if (await Directory(cachePath).exists()) {
+                try {
+                  final hash = await calculateDirectoryHash(cachePath);
+                  component['hashes'] = [{
+                    'alg': 'SHA-256',
+                    'content': hash
+                  }];
+                } catch (e) {
+                  print('Error calculating package hash: $e');
+                }
+              }
+            }
+          }
+          
+          // Calculate directory hash
+          Future<String> calculateDirectoryHash(String path) async {
+            final result = await Process.run('find', [path, '-type', 'f', '-exec', 'sha256sum', '{}', '\\;']);
+            if (result.exitCode == 0) {
+              final hashes = result.stdout.toString().split('\n')
+                  .where((line) => line.isNotEmpty)
+                  .map((line) => line.split(' ')[0])
+                  .toList();
+              
+              // Combine all hashes
+              final combined = hashes.join('');
+              final result2 = await Process.run('echo', [combined]);
+              if (result2.exitCode == 0) {
+                final finalResult = await Process.run('sha256sum', []);
+                if (finalResult.exitCode == 0) {
+                  return finalResult.stdout.toString().split(' ')[0];
+                }
+              }
+            }
+            return 'unknown';
+          }
+          
+          // Add build toolchain
+          Future<void> addBuildToolchain(Map<String, dynamic> sbom) async {
+            final tools = <Map<String, dynamic>>[];
+            
+            // Flutter SDK
+            tools.add({
+              'vendor': 'Flutter',
+              'name': 'flutter',
+              'version': await getFlutterVersion()
+            });
+            
+            // Dart SDK
+            tools.add({
+              'vendor': 'Dart',
+              'name': 'dart',
+              'version': await getDartVersion()
+            });
+            
+            // Gradle (if Android exists)
+            final androidDir = Directory('android');
+            if (await androidDir.exists()) {
+              final gradleVersion = await getGradleVersion();
+              if (gradleVersion != null) {
+                tools.add({
+                  'vendor': 'Gradle',
+                  'name': 'gradle',
+                  'version': gradleVersion
+                });
+              }
+            }
+            
+            // CocoaPods (if iOS exists)
+            final iosDir = Directory('ios');
+            if (await iosDir.exists()) {
+              final cocoapodsVersion = await getCocoaPodsVersion();
+              if (cocoapodsVersion != null) {
+                tools.add({
+                  'vendor': 'CocoaPods',
+                  'name': 'cocoapods',
+                  'version': cocoapodsVersion
+                });
+              }
+            }
+            
+            sbom['metadata']['tools'] = tools;
+          }
+          
+          // Get Gradle version
+          Future<String?> getGradleVersion() async {
+            try {
+              final result = await Process.run('gradle', ['--version']);
+              if (result.exitCode == 0) {
+                final lines = result.stdout.toString().split('\n');
+                for (final line in lines) {
+                  if (line.contains('Gradle')) {
+                    final match = RegExp(r'Gradle (\d+\.\d+\.\d+)').firstMatch(line);
+                    if (match != null) {
+                      return match.group(1);
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              print('Error getting Gradle version: $e');
+            }
+            return null;
+          }
+          
+          // Get CocoaPods version
+          Future<String?> getCocoaPodsVersion() async {
+            try {
+              final result = await Process.run('pod', ['--version']);
+              if (result.exitCode == 0) {
+                return result.stdout.toString().trim();
+              }
+            } catch (e) {
+              print('Error getting CocoaPods version: $e');
+            }
+            return null;
           }
           EOF
           
@@ -709,10 +1296,84 @@ jobs:
           # Generate outdated report
           flutter pub outdated --json > outdated.json || echo '{}' > outdated.json
           
-          # Generate SBOM validation report
+          # Generate comprehensive SBOM validation and completeness check
           cat > validate-sbom.py << 'EOF'
           import json
           import sys
+          import os
+          import yaml
+          from datetime import datetime
+          
+          def validate_sbom_completeness(sbom, project_root):
+              """验证 SBOM 完整性"""
+              issues = []
+              
+              # 1. 检查是否包含所有 pubspec.yaml 中的依赖
+              try:
+                  with open(f'{project_root}/pubspec.yaml', 'r') as f:
+                      pubspec_content = f.read()
+                  
+                  pubspec_deps = parse_pubspec_yaml(pubspec_content)
+                  sbom_packages = {c['name'] for c in sbom.get('components', [])}
+                  
+                  missing_deps = set(pubspec_deps.get('dependencies', {}).keys()) - sbom_packages
+                  if missing_deps:
+                      issues.append(f"Missing dependencies: {missing_deps}")
+              except Exception as e:
+                  issues.append(f"Error parsing pubspec.yaml: {e}")
+              
+              # 2. 检查是否包含原生平台依赖
+              if os.path.exists(f'{project_root}/android'):
+                  android_deps = [c for c in sbom['components'] if 'maven' in c.get('purl', '')]
+                  if not android_deps:
+                      issues.append("No Android dependencies found")
+              
+              if os.path.exists(f'{project_root}/ios'):
+                  ios_deps = [c for c in sbom['components'] if 'cocoapods' in c.get('purl', '')]
+                  if not ios_deps:
+                      issues.append("No iOS dependencies found")
+              
+              # 3. 检查是否包含传递依赖
+              direct_deps = [c for c in sbom['components'] if c.get('scope') == 'required']
+              transitive_deps = [c for c in sbom['components'] if c.get('scope') == 'optional']
+              if len(transitive_deps) == 0 and len(direct_deps) > 5:
+                  issues.append("Suspicious: No transitive dependencies found")
+              
+              # 4. 检查是否包含构建工具链
+              tools = sbom.get('metadata', {}).get('tools', [])
+              if not tools:
+                  issues.append("No build toolchain information found")
+              
+              # 5. 检查是否包含运行时依赖
+              runtime_deps = [c for c in sbom['components'] if c.get('properties') and 
+                            any(p.get('name') == 'runtime' for p in c['properties'])]
+              if not runtime_deps:
+                  issues.append("No runtime dependencies detected")
+              
+              return issues
+          
+          def parse_pubspec_yaml(content):
+              """解析 pubspec.yaml 文件"""
+              lines = content.split('\n')
+              info = {}
+              current_section = ''
+              
+              for line in lines:
+                  trimmed_line = line.strip()
+                  if trimmed_line.startswith('dependencies:'):
+                      current_section = 'dependencies'
+                      info[current_section] = {}
+                  elif trimmed_line.startswith('dev_dependencies:'):
+                      current_section = 'dev_dependencies'
+                      info[current_section] = {}
+                  elif current_section and trimmed_line.startswith('  ') and ':' in trimmed_line:
+                      parts = trimmed_line.split(':')
+                      if len(parts) >= 2:
+                          dep_name = parts[0].strip()
+                          dep_version = parts[1].strip()
+                          info[current_section][dep_name] = dep_version
+              
+              return info
           
           def validate_sbom():
               try:
@@ -723,15 +1384,20 @@ jobs:
                       'valid': True,
                       'errors': [],
                       'warnings': [],
+                      'completeness_issues': [],
                       'coverage': {
                           'total_components': len(sbom.get('components', [])),
                           'with_license': 0,
                           'with_description': 0,
                           'with_purl': 0,
-                          'with_hash': 0
+                          'with_hash': 0,
+                          'by_platform': {},
+                          'by_source': {},
+                          'by_scope': {}
                       }
                   }
                   
+                  # Analyze components
                   for component in sbom.get('components', []):
                       if component.get('licenses'):
                           validation['coverage']['with_license'] += 1
@@ -741,6 +1407,41 @@ jobs:
                           validation['coverage']['with_purl'] += 1
                       if component.get('hashes'):
                           validation['coverage']['with_hash'] += 1
+                      
+                      # Count by platform
+                      platform = 'unknown'
+                      purl = component.get('purl', '')
+                      if 'pkg:pub/' in purl:
+                          platform = 'dart'
+                      elif 'pkg:maven/' in purl:
+                          platform = 'android'
+                      elif 'pkg:cocoapods/' in purl:
+                          platform = 'ios'
+                      elif 'pkg:cmake/' in purl:
+                          platform = 'native'
+                      elif 'pkg:cdn/' in purl:
+                          platform = 'web'
+                      
+                      validation['coverage']['by_platform'][platform] = validation['coverage']['by_platform'].get(platform, 0) + 1
+                      
+                      # Count by scope
+                      scope = component.get('scope', 'unknown')
+                      validation['coverage']['by_scope'][scope] = validation['coverage']['by_scope'].get(scope, 0) + 1
+                      
+                      # Count by source
+                      source = 'unknown'
+                      if 'pkg:pub/' in purl:
+                          source = 'pub.dev'
+                      elif 'pkg:maven/' in purl:
+                          source = 'maven'
+                      elif 'pkg:cocoapods/' in purl:
+                          source = 'cocoapods'
+                      elif 'pkg:git/' in purl:
+                          source = 'git'
+                      elif 'pkg:cdn/' in purl:
+                          source = 'cdn'
+                      
+                      validation['coverage']['by_source'][source] = validation['coverage']['by_source'].get(source, 0) + 1
                   
                   # Calculate coverage percentages
                   total = validation['coverage']['total_components']
@@ -758,20 +1459,85 @@ jobs:
                   if not sbom.get('components'):
                       validation['warnings'].append('No components found in SBOM')
                   
-                  with open('sbom-validation.json', 'w') as f:
-                      json.dump(validation, f, indent=2)
+                  # Check completeness
+                  validation['completeness_issues'] = validate_sbom_completeness(sbom, '.')
                   
-                  print('SBOM validation completed')
+                  # Add completeness issues to errors/warnings
+                  for issue in validation['completeness_issues']:
+                      if 'Missing' in issue or 'No' in issue:
+                          validation['errors'].append(issue)
+                          validation['valid'] = False
+                      else:
+                          validation['warnings'].append(issue)
+                  
+                  # Generate comprehensive report
+                  report = {
+                      'timestamp': datetime.now().isoformat(),
+                      'validation': validation,
+                      'summary': {
+                          'total_components': validation['coverage']['total_components'],
+                          'platforms_covered': len(validation['coverage']['by_platform']),
+                          'sources_covered': len(validation['coverage']['by_source']),
+                          'scopes_covered': len(validation['coverage']['by_scope']),
+                          'overall_coverage_score': calculate_coverage_score(validation)
+                      }
+                  }
+                  
+                  with open('sbom-validation.json', 'w') as f:
+                      json.dump(report, f, indent=2)
+                  
+                  print('Comprehensive SBOM validation completed')
                   print(f'Valid: {validation["valid"]}')
                   print(f'Errors: {len(validation["errors"])}')
                   print(f'Warnings: {len(validation["warnings"])}')
-                  print(f'Coverage: {validation["coverage"]}')
+                  print(f'Completeness Issues: {len(validation["completeness_issues"])}')
+                  print(f'Coverage Score: {report["summary"]["overall_coverage_score"]}/100')
+                  print(f'Platforms: {validation["coverage"]["by_platform"]}')
+                  print(f'Sources: {validation["coverage"]["by_source"]}')
                   
                   return validation['valid']
                   
               except Exception as e:
                   print(f'SBOM validation failed: {e}')
                   return False
+          
+          def calculate_coverage_score(validation):
+              """计算覆盖率得分"""
+              score = 100
+              
+              # 基础分数
+              coverage = validation['coverage']
+              total = coverage['total_components']
+              
+              if total > 0:
+                  # 元数据完整性
+                  score -= (100 - coverage.get('purl_coverage', 0)) * 0.3
+                  score -= (100 - coverage.get('license_coverage', 0)) * 0.2
+                  score -= (100 - coverage.get('description_coverage', 0)) * 0.1
+                  score -= (100 - coverage.get('hash_coverage', 0)) * 0.1
+                  
+                  # 平台覆盖
+                  platforms = coverage['by_platform']
+                  if 'dart' not in platforms:
+                      score -= 20
+                  if 'android' not in platforms and 'ios' not in platforms:
+                      score -= 15
+                  
+                  # 范围覆盖
+                  scopes = coverage['by_scope']
+                  if 'required' not in scopes:
+                      score -= 10
+                  if 'optional' not in scopes:
+                      score -= 5
+                  
+                  # 错误和警告扣分
+                  score -= len(validation['errors']) * 10
+                  score -= len(validation['warnings']) * 5
+                  
+                  # 完整性检查扣分
+                  score -= len(validation['completeness_issues']) * 8
+              
+              return max(0, int(score))
           
           if __name__ == '__main__':
               success = validate_sbom()
