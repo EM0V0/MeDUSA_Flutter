@@ -528,7 +528,7 @@ jobs:
               final gradleFile = File('android/app/build.gradle');
               if (await gradleFile.exists()) {
                 final content = await gradleFile.readAsString();
-                final dependencies = RegExp(r"implementation\s+['\"]([^'\"]+)['\"]").allMatches(content);
+                final dependencies = RegExp(r'''implementation\s+['"]([^'"]+)['"]''').allMatches(content);
                 
                 for (final match in dependencies) {
                   final dep = match.group(1)!;
@@ -571,7 +571,7 @@ jobs:
               final podfile = File('ios/Podfile');
               if (await podfile.exists()) {
                 final content = await podfile.readAsString();
-                final dependencies = RegExp(r"pod\s+['\"]([^'\"]+)['\"](?:\s*,\s*['\"]([^'\"]+)['\"])?").allMatches(content);
+                final dependencies = RegExp(r'''pod\s+['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?''').allMatches(content);
                 
                 for (final match in dependencies) {
                   final name = match.group(1)!;
@@ -785,7 +785,7 @@ jobs:
             final podfile = File('macos/Podfile');
             if (await podfile.exists()) {
               final content = await podfile.readAsString();
-              final dependencies = RegExp(r"pod\s+['\"]([^'\"]+)['\"](?:\s*,\s*['\"]([^'\"]+)['\"])?").allMatches(content);
+              final dependencies = RegExp(r'''pod\s+['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?''').allMatches(content);
               
               for (final match in dependencies) {
                 final name = match.group(1)!;
@@ -831,7 +831,7 @@ jobs:
                 final androidGradle = File('$packagePath/android/build.gradle');
                 if (await androidGradle.exists()) {
                   final content = await androidGradle.readAsString();
-                  final dependencies = RegExp(r"implementation\s+['\"]([^'\"]+)['\"]").allMatches(content);
+                  final dependencies = RegExp(r'''implementation\s+['"]([^'"]+)['"]''').allMatches(content);
                   
                   for (final match in dependencies) {
                     final dep = match.group(1)!;
@@ -871,7 +871,7 @@ jobs:
                 final iosPodspec = File('$packagePath/ios/$packageName.podspec');
                 if (await iosPodspec.exists()) {
                   final content = await iosPodspec.readAsString();
-                  final dependencies = RegExp(r'\.dependency\s+[\'"]([^\'"]+)[\'"](?:\s*,\s*[\'"]([^\'"]+)[\'"])?').allMatches(content);
+                  final dependencies = RegExp(r'''\.dependency\s+['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?''').allMatches(content);
                   
                   for (final match in dependencies) {
                     final name = match.group(1)!;
@@ -955,7 +955,7 @@ jobs:
                   final content = await file.readAsString();
                   
                   // Detect DynamicLibrary.open() calls
-                  final dynamicLibs = RegExp(r"DynamicLibrary\.open\(['\"]([^'\"]+)['\"]\)").allMatches(content);
+                  final dynamicLibs = RegExp(r'''DynamicLibrary\.open\(['"]([^'"]+)['"]\)''').allMatches(content);
                   for (final match in dynamicLibs) {
                     final lib = match.group(1)!;
                     final packageKey = 'runtime:$lib';
@@ -1957,17 +1957,17 @@ jobs:
                     trufflehog filesystem . --json --no-verification > secret-scan-results.json || {
                       EXIT_CODE=$?
                       echo "TruffleHog scan completed with exit code: $EXIT_CODE"
-                              }
-                              
-                              # Ensure output file exists and is valid
-                              if [ ! -f "secret-scan-results.json" ] || [ ! -s "secret-scan-results.json" ]; then
-                                echo '[]' > secret-scan-results.json
-                              fi
-                              
-                              # Count discovered secrets
+                                        }
+                                        
+                                        # Ensure output file exists and is valid
+                                        if [ ! -f "secret-scan-results.json" ] || [ ! -s "secret-scan-results.json" ]; then
+                                          echo '[]' > secret-scan-results.json
+                                        fi
+                                        
+                                        # Count discovered secrets
                     if [ -f "secret-scan-results.json" ]; then
-                                # TruffleHog v3 output is JSON array
-                                SECRET_COUNT=$(wc -l < secret-scan-results.json 2>/dev/null || echo "0")
+                                          # TruffleHog v3 output is JSON array
+                                          SECRET_COUNT=$(wc -l < secret-scan-results.json 2>/dev/null || echo "0")
                       echo "Found $SECRET_COUNT potential secrets"
                       if [ "$SECRET_COUNT" -gt 0 ]; then
                         echo "::warning::Found $SECRET_COUNT potential secrets in the codebase"
