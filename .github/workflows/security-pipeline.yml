@@ -815,6 +815,7 @@ jobs:
           
           // Add plugin native dependencies
           Future<void> addPluginNativeDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
             final pubspecLock = File('pubspec.lock');
             if (!await pubspecLock.exists()) return;
             
@@ -1947,32 +1948,32 @@ jobs:
           
       - name: Secret scanning
         run: |
-                    # Install TruffleHog using official installation script
-                    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
-                    
-                    # Verify installation
-                    trufflehog --version
-                    
-                    # Run scan
-                    trufflehog filesystem . --json --no-verification > secret-scan-results.json || {
-                      EXIT_CODE=$?
-                      echo "TruffleHog scan completed with exit code: $EXIT_CODE"
-                                        }
-                                        
-                                        # Ensure output file exists and is valid
-                                        if [ ! -f "secret-scan-results.json" ] || [ ! -s "secret-scan-results.json" ]; then
-                                          echo '[]' > secret-scan-results.json
-                                        fi
-                                        
-                                        # Count discovered secrets
-                    if [ -f "secret-scan-results.json" ]; then
-                                          # TruffleHog v3 output is JSON array
-                                          SECRET_COUNT=$(wc -l < secret-scan-results.json 2>/dev/null || echo "0")
-                      echo "Found $SECRET_COUNT potential secrets"
-                      if [ "$SECRET_COUNT" -gt 0 ]; then
-                        echo "::warning::Found $SECRET_COUNT potential secrets in the codebase"
-                      fi
-                    fi
+          # Install TruffleHog using official installation script
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Verify installation
+          trufflehog --version
+          
+          # Run scan
+          trufflehog filesystem . --json --no-verification > secret-scan-results.json || {
+            EXIT_CODE=$?
+            echo "TruffleHog scan completed with exit code: $EXIT_CODE"
+          }
+          
+          # Ensure output file exists and is valid
+          if [ ! -f "secret-scan-results.json" ] || [ ! -s "secret-scan-results.json" ]; then
+            echo '[]' > secret-scan-results.json
+          fi
+          
+          # Count discovered secrets
+          if [ -f "secret-scan-results.json" ]; then
+            # TruffleHog v3 output is JSON array
+            SECRET_COUNT=$(wc -l < secret-scan-results.json 2>/dev/null || echo "0")
+            echo "Found $SECRET_COUNT potential secrets"
+            if [ "$SECRET_COUNT" -gt 0 ]; then
+              echo "::warning::Found $SECRET_COUNT potential secrets in the codebase"
+            fi
+          fi
           
       - name: Dependency integrity check
         run: |
