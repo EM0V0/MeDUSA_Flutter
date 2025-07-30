@@ -1305,10 +1305,10 @@ jobs:
           from datetime import datetime
           
           def validate_sbom_completeness(sbom, project_root):
-              """验证 SBOM 完整性"""
+              """Validate SBOM completeness"""
               issues = []
               
-              # 1. 检查是否包含所有 pubspec.yaml 中的依赖
+              # 1. Check if all dependencies from pubspec.yaml are included
               try:
                   with open(f'{project_root}/pubspec.yaml', 'r') as f:
                       pubspec_content = f.read()
@@ -1322,7 +1322,7 @@ jobs:
               except Exception as e:
                   issues.append(f"Error parsing pubspec.yaml: {e}")
               
-              # 2. 检查是否包含原生平台依赖
+              # 2. Check if native platform dependencies are included
               if os.path.exists(f'{project_root}/android'):
                   android_deps = [c for c in sbom['components'] if 'maven' in c.get('purl', '')]
                   if not android_deps:
@@ -1333,18 +1333,18 @@ jobs:
                   if not ios_deps:
                       issues.append("No iOS dependencies found")
               
-              # 3. 检查是否包含传递依赖
+              # 3. Check if transitive dependencies are included
               direct_deps = [c for c in sbom['components'] if c.get('scope') == 'required']
               transitive_deps = [c for c in sbom['components'] if c.get('scope') == 'optional']
               if len(transitive_deps) == 0 and len(direct_deps) > 5:
                   issues.append("Suspicious: No transitive dependencies found")
               
-              # 4. 检查是否包含构建工具链
+              # 4. Check if build toolchain information is included
               tools = sbom.get('metadata', {}).get('tools', [])
               if not tools:
                   issues.append("No build toolchain information found")
               
-              # 5. 检查是否包含运行时依赖
+              # 5. Check if runtime dependencies are included
               runtime_deps = [c for c in sbom['components'] if c.get('properties') and 
                             any(p.get('name') == 'runtime' for p in c['properties'])]
               if not runtime_deps:
@@ -1353,7 +1353,7 @@ jobs:
               return issues
           
           def parse_pubspec_yaml(content):
-              """解析 pubspec.yaml 文件"""
+              """Parse pubspec.yaml file"""
               lines = content.split('\n')
               info = {}
               current_section = ''
@@ -1502,39 +1502,39 @@ jobs:
                   return False
           
           def calculate_coverage_score(validation):
-              """计算覆盖率得分"""
+              """Calculate coverage score"""
               score = 100
               
-              # 基础分数
+              # Base score
               coverage = validation['coverage']
               total = coverage['total_components']
               
               if total > 0:
-                  # 元数据完整性
+                  # Metadata completeness
                   score -= (100 - coverage.get('purl_coverage', 0)) * 0.3
                   score -= (100 - coverage.get('license_coverage', 0)) * 0.2
                   score -= (100 - coverage.get('description_coverage', 0)) * 0.1
                   score -= (100 - coverage.get('hash_coverage', 0)) * 0.1
                   
-                  # 平台覆盖
+                  # Platform coverage
                   platforms = coverage['by_platform']
                   if 'dart' not in platforms:
                       score -= 20
                   if 'android' not in platforms and 'ios' not in platforms:
                       score -= 15
                   
-                  # 范围覆盖
+                  # Scope coverage
                   scopes = coverage['by_scope']
                   if 'required' not in scopes:
                       score -= 10
                   if 'optional' not in scopes:
                       score -= 5
                   
-                  # 错误和警告扣分
+                  # Error and warning penalties
                   score -= len(validation['errors']) * 10
                   score -= len(validation['warnings']) * 5
                   
-                  # 完整性检查扣分
+                  # Completeness check penalties
                   score -= len(validation['completeness_issues']) * 8
               
               return max(0, int(score))
@@ -1807,7 +1807,7 @@ jobs:
                 touch ${{ matrix.tool }}-results.txt
               }
               # Convert to SARIF format using a simple approach
-              echo 'import "dart:io"; import "dart:convert"; void main() async { final input = File("flutter-analyzer-results.txt"); if (!await input.exists()) { final emptySarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": []}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(emptySarif)); return; } final lines = await input.readAsLines(); final results = []; for (final line in lines) { if (line.contains("•")) { final parts = line.split("•"); if (parts.length >= 3) { final location = parts[0].trim(); final severity = parts[1].trim(); final message = parts[2].trim(); final locationParts = location.split(":"); if (locationParts.length >= 2) { results.add({"ruleId": "flutter-analyzer", "level": severity.toLowerCase() == "error" ? "error" : "warning", "message": {"text": message}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": locationParts[0]}, "region": {"startLine": int.tryParse(locationParts[1]) ?? 1}}}]}); } } } } final sarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": results}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(sarif)); }' > convert-to-sarif.dart
+              echo 'import "dart:io"; import "dart:convert"; void main() async { final input = File("flutter-analyzer-results.txt"); if (!await input.exists()) { final emptySarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": []}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(emptySarif)); return; } final lines = await input.readAsLines(); final results = []; for (final line in lines) { if (line.contains("bullet")) { final parts = line.split("bullet"); if (parts.length >= 3) { final location = parts[0].trim(); final severity = parts[1].trim(); final message = parts[2].trim(); final locationParts = location.split(":"); if (locationParts.length >= 2) { results.add({"ruleId": "flutter-analyzer", "level": severity.toLowerCase() == "error" ? "error" : "warning", "message": {"text": message}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": locationParts[0]}, "region": {"startLine": int.tryParse(locationParts[1]) ?? 1}}}]}); } } } } final sarif = {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "flutter-analyzer", "version": "1.0.0"}}, "results": results}]}; await File("flutter-analyzer-results.sarif").writeAsString(JsonEncoder.withIndent("  ").convert(sarif)); }' > convert-to-sarif.dart
               
               dart run convert-to-sarif.dart
               ;;
@@ -1858,26 +1858,26 @@ jobs:
           
       - name: Secret scanning
         run: |
-          # 使用官方安装脚本安装 TruffleHog
+          # Install TruffleHog using official installation script
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
           
-          # 验证安装
+          # Verify installation
           trufflehog --version
           
-          # 运行扫描
+          # Run scan
           trufflehog filesystem . --json --no-verification > secret-scan-results.json || {
             EXIT_CODE=$?
             echo "TruffleHog scan completed with exit code: $EXIT_CODE"
           }
           
-          # 确保输出文件存在且有效
+          # Ensure output file exists and is valid
           if [ ! -f "secret-scan-results.json" ] || [ ! -s "secret-scan-results.json" ]; then
             echo '[]' > secret-scan-results.json
           fi
           
-          # 计算发现的秘密数量
+          # Count discovered secrets
           if [ -f "secret-scan-results.json" ]; then
-            # TruffleHog v3 输出是 JSON 数组
+            # TruffleHog v3 output is JSON array
             SECRET_COUNT=$(jq 'length' secret-scan-results.json 2>/dev/null || echo "0")
             echo "Found $SECRET_COUNT potential secrets"
             if [ "$SECRET_COUNT" -gt 0 ]; then
@@ -2304,7 +2304,7 @@ jobs:
           | 🟠 High | {summary['high_vulnerabilities']} |
           | 🟡 Medium | {summary['medium_vulnerabilities']} |
           | 🔍 SAST | {summary['sast_issues']} |
-          | 🔑 Secrets | {summary['secrets_found']} |
+          | Secrets | {summary['secrets_found']} |
           
           [View Full Report](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})
           """
@@ -2342,7 +2342,7 @@ jobs:
             
             const botComment = comments.find(comment => 
               comment.user.type === 'Bot' && 
-              comment.body.includes('🔒 Security Scan Results')
+              comment.body.includes('Security Scan Results')
             );
             
             if (botComment) {
