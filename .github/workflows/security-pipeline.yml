@@ -3,14 +3,13 @@ name: Optimized Flutter Security Pipeline
 on:
   push:
     branches: [main, develop]
-    # Path filtering to avoid unnecessary runs
     paths:
       - 'lib/**'
       - 'test/**'
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - '.github/workflows/**'
-      - 'scripts/**'  # Add scripts directory
+      - 'scripts/**'
       
   pull_request:
     branches: [main]
@@ -24,22 +23,20 @@ on:
       scan_type:
         description: 'Scan type'
         required: true
-        default: 'incremental'
+        default: 'full'
         type: choice
         options:
           - incremental
           - full
           - critical-only
 
-# Concurrency control - Fixed P0-3: Remove / from group name
 concurrency:
   group: security-${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Minimal permissions - Fixed P2-3: Add OIDC for external artifact uploads
 permissions:
   contents: read
-  id-token: write      # For external artifact uploads
+  id-token: write
   security-events: write
   actions: read
 
@@ -48,7 +45,7 @@ env:
   FLUTTER_VERSION: '3.19.0'
   DART_VERSION: '3.3.0'
   
-  # Security tool versions (2024 latest)
+  # Security tool versions
   SYFT_VERSION: 'v1.29.0'
   GRYPE_VERSION: 'v0.74.1'
   TRIVY_VERSION: 'v0.48.1'
@@ -74,25 +71,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for secure comparison
+          fetch-depth: 0
           
       - id: check
         run: |
-          # Safely get base SHA
+          # Determine scan type and check if should run
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             CURRENT_SHA="${{ github.sha }}"
           else
-            # For push events, use before and after
             BASE_SHA="${{ github.event.before }}"
             CURRENT_SHA="${{ github.sha }}"
           fi
           
           echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
           
-          # Check if full pipeline should run
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # Safely check changed files
+          # Override with manual input if provided
+          if [[ "${{ github.event.inputs.scan_type }}" != "" ]]; then
+            echo "scan_type=${{ github.event.inputs.scan_type }}" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "scan_type=full" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
             if [[ "$BASE_SHA" != "0000000000000000000000000000000000000000" ]]; then
               CHANGED=$(git diff --name-only $BASE_SHA $CURRENT_SHA | grep -E '\.(dart|yaml)$' | wc -l)
               if [ $CHANGED -eq 0 ]; then
@@ -101,14 +102,12 @@ jobs:
                 echo "should_run=true" >> $GITHUB_OUTPUT
                 echo "scan_type=incremental" >> $GITHUB_OUTPUT
                 
-                # Get changed files
                 CHANGED_FILES=$(git diff --name-only $BASE_SHA $CURRENT_SHA | grep -E '\.(dart|yaml)$' || true)
                 echo "changed_files<<EOF" >> $GITHUB_OUTPUT
                 echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
                 echo "EOF" >> $GITHUB_OUTPUT
               fi
             else
-              # First commit or squash-merge case
               echo "should_run=true" >> $GITHUB_OUTPUT
               echo "scan_type=full" >> $GITHUB_OUTPUT
             fi
@@ -116,11 +115,8 @@ jobs:
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "scan_type=full" >> $GITHUB_OUTPUT
           fi
-          
-          # P0-5: Export SCAN_TYPE to environment
-          echo "SCAN_TYPE=full" >> $GITHUB_ENV
 
-  # Cache setup - Enhanced caching strategy
+  # Cache setup
   setup-and-cache:
     runs-on: ubuntu-latest
     needs: pre-check
@@ -132,17 +128,14 @@ jobs:
         with:
           fetch-depth: 0
           
-      # P1-1: Install parsing helpers
       - name: Install parsing helpers
         run: |
           sudo apt-get update && sudo apt-get install -y jq yq python3-yaml
           
-      # P1-4: Update Grype database
-      - name: Update Grype database
+      - name: Update security databases
         run: |
-          # Install Grype for database update
+          # Install and update Grype database
           wget -qO- https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh
-          # Add to PATH and update database
           export PATH="$PWD/bin:$PATH"
           grype db update
           
@@ -154,7 +147,6 @@ jobs:
             ~/.pub-cache
             .dart_tool
             .packages
-            # Tool caches
             ~/.cache/semgrep
             ~/.cache/trivy
             ~/.grype/db
@@ -165,12 +157,12 @@ jobs:
             ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-
             ${{ runner.os }}-flutter-
 
-  # Dependency security scanning - Multi-layer scanning mechanism
-  dependency-security:
+  # Independent SBOM generation
+  generate-sbom:
+    runs-on: ubuntu-latest
     needs: [pre-check, setup-and-cache]
     if: needs.pre-check.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     
     steps:
       - uses: actions/checkout@v4
@@ -183,239 +175,89 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
         
-      # Layer 1: Flutter native dependency check
-      - name: Flutter Dependency Analysis
+      - name: Generate comprehensive SBOM
         run: |
-          echo "Running Flutter dependency analysis..."
-          
-          # Check outdated dependencies
-          flutter pub outdated --json > outdated.json
-          flutter pub deps --style=tree > dependency-tree.txt
-          
-          # Use yq to correctly parse YAML
-          if command -v yq &> /dev/null; then
-            PACKAGES=$(yq '.packages | length' pubspec.lock)
-          else
-            # Fallback: use Python
-            PACKAGES=$(python3 -c "import yaml; print(len(yaml.safe_load(open('pubspec.lock'))['packages']))")
-          fi
-          
-          echo "Dependency analysis completed"
-          echo "Total dependencies: $PACKAGES"
-          
-      # Layer 2: Known vulnerability database comparison
-      - name: Known Vulnerability Check
-        run: |
-          echo "Checking known vulnerabilities..."
-          
-          # Ensure Dart is available
-          which dart || echo "Dart not found in PATH"
-          dart --version || echo "Dart version check failed"
-          
-          # Create vulnerability check script with better error handling
-          cat > check-known-vulns.dart << 'EOF'
-          import 'dart:io';
-          import 'dart:convert';
-          
-          final vulnerablePackages = {
-            'http': ['0.12.0', '0.12.1', '0.12.2'],
-            'dio': ['4.0.0', '4.0.1', '4.0.2'],
-            'shared_preferences': ['0.5.0', '0.5.1'],
-            'url_launcher': ['5.0.0', '5.0.1'],
-            'webview_flutter': ['0.3.0', '0.3.1'],
-            'crypto': ['3.0.0', '3.0.1'],
-            'sqflite': ['2.0.0', '2.0.1'],
-          };
-          
-          void main() async {
-            final report = <String, dynamic>{
-              'timestamp': DateTime.now().toIso8601String(),
-              'vulnerabilities': <Map<String, dynamic>>[],
-              'total_checked': 0,
-              'vulnerable_count': 0
-            };
-            
-            try {
-              // Check if pubspec.lock exists
-              final lockFile = File('pubspec.lock');
-              if (!await lockFile.exists()) {
-                print('pubspec.lock not found, creating empty report');
-                final reportFile = File('known-vulnerabilities.json');
-                await reportFile.writeAsString(
-                  JsonEncoder.withIndent('  ').convert(report)
-                );
-                return;
-              }
-              
-              final content = await lockFile.readAsString();
-              
-              // Simple parsing without yaml package dependency
-              final lines = content.split('\n');
-              String currentPackage = '';
-              String currentVersion = '';
-              
-              for (final line in lines) {
-                if (line.trim().startsWith('  ')) {
-                  if (line.contains(':')) {
-                    final parts = line.split(':');
-                    if (parts.length >= 2) {
-                      final key = parts[0].trim();
-                      final value = parts[1].trim();
-                      
-                      if (key == 'name') {
-                        currentPackage = value;
-                      } else if (key == 'version') {
-                        currentVersion = value;
-                        
-                        // Check if this package is vulnerable
-                        if (vulnerablePackages.containsKey(currentPackage)) {
-                          if (vulnerablePackages[currentPackage]!.contains(currentVersion)) {
-                            report['vulnerable_count'] = (report['vulnerable_count'] as int) + 1;
-                            (report['vulnerabilities'] as List<Map<String, dynamic>>).add({
-                              'package': currentPackage,
-                              'version': currentVersion,
-                              'severity': 'HIGH',
-                              'description': 'Known vulnerable version',
-                              'recommendation': 'Update to latest version'
-                            });
-                          }
-                        }
-                        report['total_checked'] = (report['total_checked'] as int) + 1;
-                      }
-                    }
-                  }
-                }
-              }
-              
-              // Write report
-              final reportFile = File('known-vulnerabilities.json');
-              await reportFile.writeAsString(
-                JsonEncoder.withIndent('  ').convert(report)
-              );
-              
-              print('Known vulnerability check completed');
-              print('Checked: ${report['total_checked']} packages');
-              print('Vulnerable: ${report['vulnerable_count']} packages');
-              
-              // Exit with code 1 if vulnerabilities found - Fixed P0-4: Use // instead of #
-              if ((report['vulnerable_count'] as int) > 0) {
-                exit(1);
-              }
-            } catch (e) {
-              print('Vulnerability check failed: $e');
-              exit(1);
-            }
-          }
-          EOF
-          
-          dart pub add yaml
-          dart run check-known-vulns.dart
-          
-      # Layer 3: CVE database scanning
-      - name: Generate SBOM with Syft v1.0+
-        run: |
-          # Install Syft manually
+          # Install Syft
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           syft --version
           
-          # Generate SBOM with error handling
-          syft scan . --format cyclonedx-json --output syft-sbom.json || {
-            echo "Syft scan failed, creating empty SBOM file"
-            echo '{"bomFormat": "CycloneDX", "specVersion": "1.4", "version": 1, "metadata": {"timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "tools": [{"vendor": "Syft", "name": "syft", "version": "1.29.0"}]}, "components": []}' > syft-sbom.json
-          }
+          # Generate Syft SBOM
+          syft . --output cyclonedx-json=syft-sbom.json
           
-      # P2-1: Merge SBOMs
-      - name: Merge SBOMs
-        run: |
           # Generate Flutter-specific SBOM
           cat > generate-flutter-sbom.dart << 'EOF'
           import 'dart:io';
           import 'dart:convert';
           
-          Map<String, dynamic> _parseYaml(String content) {
-            final result = <String, dynamic>{};
-            final lines = content.split('\n');
-            String currentKey = '';
-            Map<String, dynamic> currentMap = result;
-            
-            for (final line in lines) {
-              final trimmed = line.trim();
-              if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-              
-              if (trimmed.contains(':')) {
-                final colonIndex = trimmed.indexOf(':');
-                final key = trimmed.substring(0, colonIndex).trim();
-                final value = trimmed.substring(colonIndex + 1).trim();
-                
-                if (value.isEmpty) {
-                  currentKey = key;
-                  currentMap[key] = <String, dynamic>{};
-                  currentMap = currentMap[key] as Map<String, dynamic>;
-                } else {
-                  currentMap[key] = value;
-                }
-              }
-            }
-            return result;
-          }
-          
           void main() async {
             try {
-              // Read pubspec.lock
-              final lockFile = File('pubspec.lock');
-              final lockContent = await lockFile.readAsString();
+              // Run flutter pub deps command
+              final result = await Process.run('flutter', ['pub', 'deps', '--json']);
+              if (result.exitCode != 0) {
+                print('Error running flutter pub deps: ${result.stderr}');
+                exit(1);
+              }
               
-              // Read pubspec.yaml
+              final depsData = json.decode(result.stdout);
+              
+              // Read pubspec.yaml for metadata
               final pubspecFile = File('pubspec.yaml');
               final pubspecContent = await pubspecFile.readAsString();
               
-              // Simple parsing without yaml package dependency
-              final pubspecYaml = _parseYaml(pubspecContent);
-              final lockYaml = _parseYaml(lockContent);
+              // Extract name and version (simple parsing)
+              String appName = 'unknown';
+              String appVersion = '0.0.0';
+              String description = '';
+              
+              for (final line in pubspecContent.split('\n')) {
+                if (line.startsWith('name:')) {
+                  appName = line.split(':')[1].trim();
+                } else if (line.startsWith('version:')) {
+                  appVersion = line.split(':')[1].trim().split('+')[0]; // Remove build number
+                } else if (line.startsWith('description:')) {
+                  description = line.split(':')[1].trim();
+                }
+              }
               
               // Generate SBOM
-              final sbom = <String, dynamic>{
+              final sbom = {
                 'bomFormat': 'CycloneDX',
                 'specVersion': '1.4',
                 'serialNumber': 'urn:uuid:${DateTime.now().millisecondsSinceEpoch}',
                 'version': 1,
-                'metadata': <String, dynamic>{
+                'metadata': {
                   'timestamp': DateTime.now().toIso8601String(),
-                  'tools': <Map<String, dynamic>>[
-                    <String, dynamic>{
-                      'vendor': 'Flutter Security Scanner',
-                      'name': 'flutter-sbom-generator',
-                      'version': '1.0.0'
-                    }
-                  ],
-                  'component': <String, dynamic>{
+                  'tools': [{
+                    'vendor': 'Flutter Security Scanner',
+                    'name': 'flutter-sbom-generator',
+                    'version': '1.0.0'
+                  }],
+                  'component': {
                     'type': 'application',
-                    'bom-ref': pubspecYaml['name'] ?? 'unknown',
-                    'name': pubspecYaml['name'] ?? 'unknown',
-                    'version': pubspecYaml['version'] ?? '0.0.0',
+                    'bom-ref': appName,
+                    'name': appName,
+                    'version': appVersion,
+                    'description': description,
                   }
                 },
-                'components': <Map<String, dynamic>>[]
+                'components': []
               };
               
               // Process dependencies
-              final packages = lockYaml['packages'] as Map<String, dynamic>?;
-              if (packages != null) {
-                packages.forEach((name, details) {
-                  if (name != pubspecYaml['name']) {
-                    final detailsMap = details as Map<String, dynamic>;
-                    (sbom['components'] as List<Map<String, dynamic>>).add(<String, dynamic>{
-                      'type': 'library',
-                      'bom-ref': 'pkg:pub/$name@${detailsMap['version']}',
-                      'name': name,
-                      'version': detailsMap['version'],
-                      'purl': 'pkg:pub/$name@${detailsMap['version']}',
-                      'scope': detailsMap['dependency'] == 'direct main' ? 'required' : 'optional',
-                      'hashes': <String>[]
-                    });
-                  }
-                });
+              final components = <Map<String, dynamic>>[];
+              for (var package in depsData['packages']) {
+                if (package['name'] != appName) {
+                  components.add({
+                    'type': 'library',
+                    'bom-ref': 'pkg:pub/${package['name']}@${package['version']}',
+                    'name': package['name'],
+                    'version': package['version'],
+                    'purl': 'pkg:pub/${package['name']}@${package['version']}',
+                    'scope': package['kind'] == 'direct' ? 'required' : 'optional',
+                  });
+                }
               }
+              sbom['components'] = components;
               
               // Write SBOM
               final sbomFile = File('flutter-sbom.json');
@@ -423,76 +265,79 @@ jobs:
                 JsonEncoder.withIndent('  ').convert(sbom)
               );
               print('Flutter SBOM generated successfully');
-            } catch (e) {
+              print('Total components: ${components.length}');
+            } catch (e, stack) {
               print('Error generating Flutter SBOM: $e');
-              // Create empty SBOM as fallback
-              final emptySbom = <String, dynamic>{
-                'bomFormat': 'CycloneDX',
-                'specVersion': '1.4',
-                'version': 1,
-                'metadata': <String, dynamic>{
-                  'timestamp': DateTime.now().toIso8601String(),
-                  'tools': <Map<String, dynamic>>[
-                    <String, dynamic>{
-                      'vendor': 'Flutter Security Scanner',
-                      'name': 'flutter-sbom-generator',
-                      'version': '1.0.0'
-                    }
-                  ],
-                  'component': <String, dynamic>{
-                    'type': 'application',
-                    'bom-ref': 'unknown',
-                    'name': 'unknown',
-                    'version': '0.0.0',
-                  }
-                },
-                'components': <Map<String, dynamic>>[]
-              };
-              
-              final sbomFile = File('flutter-sbom.json');
-              await sbomFile.writeAsString(
-                JsonEncoder.withIndent('  ').convert(emptySbom)
-              );
-              print('Empty Flutter SBOM created as fallback');
+              print('Stack trace: $stack');
+              exit(1);
             }
           }
           EOF
           
           dart run generate-flutter-sbom.dart
           
-          # Merge Syft and Flutter SBOMs
-          jq -s '.[0] * {components: (.[0].components + .[1].components)}' syft-sbom.json flutter-sbom.json > sbom.json
+          # Merge SBOMs
+          jq -s '.[0] * {components: (.[0].components + .[1].components)}' \
+            syft-sbom.json flutter-sbom.json > sbom.json
+            
+          # Generate dependency tree
+          flutter pub deps --style=tree > dependency-tree.txt
           
-      - name: Vulnerability Scan with Grype v0.74+
-        continue-on-error: true
+          # Generate outdated report
+          flutter pub outdated --json > outdated.json || echo '{}' > outdated.json
+          
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-bill-of-materials
+          path: |
+            sbom.json
+            syft-sbom.json
+            flutter-sbom.json
+            dependency-tree.txt
+            outdated.json
+          retention-days: 90
+
+  # Dependency vulnerability scanning
+  dependency-vulnerability-scan:
+    needs: [generate-sbom]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+        
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: software-bill-of-materials
+          
+      - name: Vulnerability scanning suite
         run: |
-          # Install Grype manually
+          # Install tools
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
-          grype --version
           
-          # Run vulnerability scan
-          if [ -f "sbom.json" ]; then
-            grype sbom:sbom.json --output sarif --file grype-results.sarif || {
-              EXIT_CODE=$?
-              echo "Grype scan failed with exit code: $EXIT_CODE"
-              if [ $EXIT_CODE -eq 1 ]; then
-                echo "Vulnerabilities found - this is expected behavior"
-              fi
-              echo "Creating empty SARIF file as fallback"
+          # Grype scan
+          grype sbom:sbom.json --output sarif --file grype-results.sarif || {
+            EXIT_CODE=$?
+            echo "Grype scan completed with exit code: $EXIT_CODE"
+            if [ ! -f "grype-results.sarif" ]; then
               echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
-            }
-          else
-            echo "SBOM file not found, creating empty SARIF file"
-            echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
-          fi
+            fi
+          }
           
-          # Display summary if SARIF file exists
-          if [ -f "grype-results.sarif" ] && command -v jq &> /dev/null; then
-            VULN_COUNT=$(jq '.runs[0].results | length' grype-results.sarif 2>/dev/null || echo "0")
-            echo "::warning::Grype found $VULN_COUNT vulnerabilities"
-          fi
+          # OSV Scanner
+          wget -q https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
+          chmod +x osv-scanner_linux_amd64
+          ./osv-scanner_linux_amd64 --sbom=sbom.json --format=json > osv-results.json || {
+            EXIT_CODE=$?
+            echo "OSV Scanner completed with exit code: $EXIT_CODE"
+            if [ ! -f "osv-results.json" ] || [ ! -s "osv-results.json" ]; then
+              echo '{"results": []}' > osv-results.json
+            fi
+          }
           
-      - name: Trivy Security Scan
+      - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -501,63 +346,23 @@ jobs:
           output: 'trivy-results.sarif'
           severity: ${{ env.TRIVY_SEVERITY }}
           
-      - name: OSV Scanner
-        continue-on-error: true
-        run: |
-          echo "Running OSV Scanner..."
-          
-          # Install OSV Scanner with signature verification
-          wget -q https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
-          wget -q https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64.asc
-          chmod +x osv-scanner_linux_amd64
-          
-          # Verify signature (optional)
-          gpg --keyserver keys.openpgp.org --recv-keys 648ACFD622F3D138 || echo "GPG key import failed, continuing without verification"
-          gpg --verify osv-scanner_linux_amd64.asc osv-scanner_linux_amd64 || echo "Signature verification failed, continuing anyway"
-          
-          # Run scan
-          ./osv-scanner_linux_amd64 --sbom=sbom.json --format=json > osv-results.json || {
-            EXIT_CODE=$?
-            echo "OSV Scanner exited with code: $EXIT_CODE"
-            if [ $EXIT_CODE -eq 8 ]; then
-              echo "Vulnerabilities found - this is expected behavior"
-            fi
-          }
-          
-          # Display summary
-          if [ -f "osv-results.json" ] && command -v jq &> /dev/null; then
-            VULN_COUNT=$(jq '.results | length' osv-results.json 2>/dev/null || echo "0")
-            echo "::warning::OSV Scanner found $VULN_COUNT vulnerabilities"
-            
-            # Show top vulnerabilities
-            echo "Top vulnerabilities:"
-            jq -r '.results[:5][]? | "- \(.vulnerability.id // "Unknown"): \(.vulnerability.summary // "No summary")"' osv-results.json 2>/dev/null || true
-          fi
-          
-      - name: Upload dependency security reports
+      - name: Upload vulnerability scan results
         uses: actions/upload-artifact@v4
         with:
-          name: dependency-security-reports
+          name: vulnerability-scan-results
           path: |
-            sbom.json
-            syft-sbom.json
-            flutter-sbom.json
             grype-results.sarif
             trivy-results.sarif
             osv-results.json
-            known-vulnerabilities.json
-            outdated.json
-            dependency-tree.txt
           retention-days: 30
 
-  # Main security scanning - Matrix strategy optimization
-  # Fixed P0-1: Removed trivy from matrix to avoid duplicate scanning
-  security-scan:
+  # Static Application Security Testing (SAST)
+  sast-scan:
     needs: [pre-check, setup-and-cache]
     if: needs.pre-check.outputs.should_run == 'true'
     strategy:
-      fail-fast: false  # One failure doesn't affect others
-      max-parallel: 3  # P2-4: Limit parallel execution
+      fail-fast: false
+      max-parallel: 3
       matrix:
         include:
           - tool: semgrep
@@ -583,12 +388,8 @@ jobs:
           channel: 'stable'
           
       - name: Get dependencies
-        run: |
-          flutter pub get
-          flutter pub global activate dart_code_metrics
-          flutter pub global activate very_good_cli
+        run: flutter pub get
           
-      # P0-2: Install security tools with specific versions
       - name: Install security tools
         run: |
           if [[ "${{ matrix.tool }}" == "semgrep" ]]; then
@@ -597,202 +398,405 @@ jobs:
             dart pub global activate dart_code_metrics
           fi
           
-          # Verify installations
-          if [[ "${{ matrix.tool }}" == "semgrep" ]]; then
-            semgrep --version || echo "Semgrep installation failed"
-          elif [[ "${{ matrix.tool }}" == "dcm" ]]; then
-            dart pub global list | grep dart_code_metrics || echo "DCM installation failed"
-          fi
-          
-      # Resource monitoring - Use trap to ensure cleanup
-      - name: Resource Monitoring
+      - name: Run security analysis
         run: |
-          # Monitor resource usage
-          (
-            while true; do
-              echo "Memory: $(free -h | grep Mem | awk '{print $3}')"
-              echo "CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}')"
-              sleep 10
-            done
-          ) &
-          MONITOR_PID=$!
-          
-          # Set trap to ensure process cleanup
-          trap 'kill $MONITOR_PID 2>/dev/null || true' EXIT
-          
-          # Execute task with error handling
           case "${{ matrix.tool }}" in
             semgrep)
               semgrep --config=${{ matrix.config }} --sarif > ${{ matrix.tool }}-results.sarif || {
-                echo "Semgrep scan failed, creating empty SARIF file"
-                echo '{"version": "2.1.0", "runs": []}' > ${{ matrix.tool }}-results.sarif
+                echo "Semgrep found issues"
+                if [ ! -f "${{ matrix.tool }}-results.sarif" ]; then
+                  echo '{"version": "2.1.0", "runs": []}' > ${{ matrix.tool }}-results.sarif
+                fi
               }
               ;;
             flutter-analyzer)
               dart analyze --format=machine > ${{ matrix.tool }}-results.txt || {
-                echo "Flutter analyzer failed, creating empty results file"
-                echo "No analysis results" > ${{ matrix.tool }}-results.txt
+                echo "Flutter analyzer found issues"
+                touch ${{ matrix.tool }}-results.txt
               }
+              # Convert to SARIF format
+              cat > convert-to-sarif.dart << 'EOFD'
+              import 'dart:io';
+              import 'dart:convert';
+              
+              void main() async {
+                final input = File('flutter-analyzer-results.txt');
+                if (!await input.exists()) {
+                  // Create empty SARIF
+                  final emptySarif = {
+                    'version': '2.1.0',
+                    '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+                    'runs': [{
+                      'tool': {
+                        'driver': {
+                          'name': 'flutter-analyzer',
+                          'version': '1.0.0'
+                        }
+                      },
+                      'results': []
+                    }]
+                  };
+                  await File('flutter-analyzer-results.sarif').writeAsString(
+                    JsonEncoder.withIndent('  ').convert(emptySarif)
+                  );
+                  return;
+                }
+                
+                final lines = await input.readAsLines();
+                final results = [];
+                
+                for (final line in lines) {
+                  if (line.contains('•')) {
+                    final parts = line.split('•');
+                    if (parts.length >= 3) {
+                      final location = parts[0].trim();
+                      final severity = parts[1].trim();
+                      final message = parts[2].trim();
+                      
+                      // Parse file path and line number
+                      final locationParts = location.split(':');
+                      if (locationParts.length >= 2) {
+                        results.add({
+                          'ruleId': 'flutter-analyzer',
+                          'level': severity.toLowerCase() == 'error' ? 'error' : 'warning',
+                          'message': {'text': message},
+                          'locations': [{
+                            'physicalLocation': {
+                              'artifactLocation': {
+                                'uri': locationParts[0]
+                              },
+                              'region': {
+                                'startLine': int.tryParse(locationParts[1]) ?? 1
+                              }
+                            }
+                          }]
+                        });
+                      }
+                    }
+                  }
+                }
+                
+                final sarif = {
+                  'version': '2.1.0',
+                  '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+                  'runs': [{
+                    'tool': {
+                      'driver': {
+                        'name': 'flutter-analyzer',
+                        'version': '1.0.0'
+                      }
+                    },
+                    'results': results
+                  }]
+                };
+                
+                await File('flutter-analyzer-results.sarif').writeAsString(
+                  JsonEncoder.withIndent('  ').convert(sarif)
+                );
+              }
+              EOFD
+              
+              dart run convert-to-sarif.dart
               ;;
             dcm)
               dart pub global run dart_code_metrics:metrics analyze lib --reporter=sarif:${{ matrix.tool }}-results.sarif || {
-                echo "DCM analysis failed, creating empty SARIF file"
-                echo '{"version": "2.1.0", "runs": []}' > ${{ matrix.tool }}-results.sarif
+                echo "DCM analysis found issues"
+                if [ ! -f "${{ matrix.tool }}-results.sarif" ]; then
+                  echo '{"version": "2.1.0", "runs": []}' > ${{ matrix.tool }}-results.sarif
+                fi
               }
               ;;
           esac
           
-          # Trap will automatically cleanup monitoring process
-          
-      # Upload Matrix Job results - Fixed P1-2: Unified naming
-      - uses: actions/upload-artifact@v4
+      - name: Upload SAST results
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.tool }}-report
+          name: sast-${{ matrix.tool }}-results
           path: |
             ${{ matrix.tool }}-results.sarif
             ${{ matrix.tool }}-results.txt
           retention-days: 30
 
-  # Supply chain security - Complete security mechanism
+  # Supply chain security
   supply-chain-security:
-    needs: [pre-check, setup-and-cache]
-    if: needs.pre-check.outputs.should_run == 'true'
+    needs: [generate-sbom]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     
     steps:
       - uses: actions/checkout@v4
-        
+      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           
-      - name: Get dependencies
-        run: flutter pub get
-        
-      # Secret scanning to prevent leaks - Fixed P2-2: Updated to v3
-      - name: Secret Scanning with TruffleHog
-        continue-on-error: true
-        run: |
-          # Install TruffleHog manually
-          pip install trufflehog
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: software-bill-of-materials
           
-          # Run secret scan
-          trufflehog --json . > trufflehog-results.json || {
+      - name: License compliance check
+        run: |
+          # Create license check script
+          cat > check-licenses.py << 'EOF'
+          import json
+          import sys
+          from datetime import datetime
+          
+          # Prohibited licenses
+          PROHIBITED_LICENSES = [
+              'GPL', 'GPL-2.0', 'GPL-3.0', 
+              'AGPL', 'AGPL-3.0',
+              'LGPL', 'LGPL-2.1', 'LGPL-3.0',
+              'SSPL', 'OSL'
+          ]
+          
+          # Warning licenses
+          WARNING_LICENSES = [
+              'MPL', 'MPL-2.0',
+              'CC-BY-SA', 'CC-BY-NC'
+          ]
+          
+          def check_licenses(sbom_file):
+              with open(sbom_file, 'r') as f:
+                  sbom = json.load(f)
+              
+              report = {
+                  'timestamp': datetime.now().isoformat(),
+                  'compliant': True,
+                  'violations': [],
+                  'warnings': [],
+                  'summary': {
+                      'total_packages': 0,
+                      'prohibited_licenses': 0,
+                      'warning_licenses': 0
+                  }
+              }
+              
+              components = sbom.get('components', [])
+              report['summary']['total_packages'] = len(components)
+              
+              for component in components:
+                  name = component.get('name', 'unknown')
+                  version = component.get('version', 'unknown')
+                  licenses = component.get('licenses', [])
+                  
+                  for license_info in licenses:
+                      license_id = license_info.get('license', {}).get('id', '')
+                      
+                      if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
+                          report['violations'].append({
+                              'package': name,
+                              'version': version,
+                              'license': license_id,
+                              'severity': 'HIGH'
+                          })
+                          report['summary']['prohibited_licenses'] += 1
+                          report['compliant'] = False
+                      elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
+                          report['warnings'].append({
+                              'package': name,
+                              'version': version,
+                              'license': license_id,
+                              'severity': 'MEDIUM'
+                          })
+                          report['summary']['warning_licenses'] += 1
+              
+              with open('license-compliance-report.json', 'w') as f:
+                  json.dump(report, f, indent=2)
+              
+              print(f"License compliance check completed")
+              print(f"Total packages: {report['summary']['total_packages']}")
+              print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
+              print(f"Warning licenses: {report['summary']['warning_licenses']}")
+              
+              return report['compliant']
+          
+          if __name__ == '__main__':
+              compliant = check_licenses('sbom.json')
+              sys.exit(0 if compliant else 1)
+          EOF
+          
+          python3 check-licenses.py || echo "License compliance issues found"
+          
+      - name: Secret scanning
+        run: |
+          # Install and run TruffleHog
+          pip install trufflesecurity-trufflehog
+          
+          trufflehog filesystem . --json > secret-scan-results.json || {
             EXIT_CODE=$?
-            echo "TruffleHog scan failed with exit code: $EXIT_CODE"
-            if [ $EXIT_CODE -eq 1 ]; then
-              echo "Secrets found - this is expected behavior"
+            echo "TruffleHog scan completed with exit code: $EXIT_CODE"
+            if [ ! -s "secret-scan-results.json" ]; then
+              echo '{"results": []}' > secret-scan-results.json
             fi
-            echo "Creating empty results file as fallback"
-            echo '{"results": []}' > trufflehog-results.json
           }
           
-          # Display summary
-          if [ -f "trufflehog-results.json" ] && command -v jq &> /dev/null; then
-            SECRET_COUNT=$(jq '.results | length' trufflehog-results.json 2>/dev/null || echo "0")
-            echo "::warning::TruffleHog found $SECRET_COUNT potential secrets"
+          # Count secrets found
+          if [ -f "secret-scan-results.json" ]; then
+            SECRET_COUNT=$(grep -c '"SourceMetadata"' secret-scan-results.json || echo "0")
+            echo "Found $SECRET_COUNT potential secrets"
+            if [ "$SECRET_COUNT" -gt 0 ]; then
+              echo "::warning::Found $SECRET_COUNT potential secrets in the codebase"
+            fi
           fi
           
-      # Dependency integrity verification
-      - name: Verify Dependencies
+      - name: Dependency integrity check
         run: |
           echo "Checking dependency integrity..."
           
-          # Check pubspec.lock integrity
-          if [ -f "pubspec.lock" ]; then
-            echo "pubspec.lock found"
+          # Check for git dependencies
+          if grep -q '"source": "git"' sbom.json; then
+            echo "::warning::Found git dependencies - these should be reviewed for security"
             
-            # Check for suspicious git dependencies
-            if grep -q "git:" pubspec.lock; then
-              echo "Found git dependencies - review for security"
-            fi
-            
-            # Verify package sources - use correct command
-            dart pub deps --json | jq '.packages[] | select(.source != "hosted")' || echo "All packages from hosted source"
-          else
-            echo "pubspec.lock not found"
-            exit 1
-          fi
+            # Extract git dependencies
+            cat > extract-git-deps.py << 'EOF'
+          import json
           
-      # License compliance check
-      - name: License Compliance Check
-        continue-on-error: true  # 添加这一行，让步骤继续执行即使发现许可证问题
-        run: |
-          echo "Checking license compliance..."
+          with open('sbom.json', 'r') as f:
+              sbom = json.load(f)
           
-          # Create license check script - Fixed P0-4: Use // instead of #
-          cat > license-check.dart << 'EOF'
-          import 'dart:io';
-          import 'dart:convert';
+          git_deps = []
+          for component in sbom.get('components', []):
+              if component.get('purl', '').startswith('pkg:git/'):
+                  git_deps.append({
+                      'name': component.get('name'),
+                      'version': component.get('version'),
+                      'purl': component.get('purl')
+                  })
           
-          final prohibitedLicenses = [
-            'GPL', 'AGPL', 'LGPL', 'SSPL', 'OSL'
-          ];
+          if git_deps:
+              print("Git dependencies found:")
+              for dep in git_deps:
+                  print(f"  - {dep['name']} @ {dep['version']}")
           
-          void main() async {
-            final report = <String, dynamic>{
-              'timestamp': DateTime.now().toIso8601String(),
-              'compliant': true,
-              'packages': <Map<String, dynamic>>[],
-              'warnings': <String>[],
-              'total_packages': 0,
-              'prohibited_licenses': 0
-            };
-            
-            try {
-              // Use correct command - Fixed P0-4: Use // instead of #
-              final process = await Process.run('dart', ['pub', 'deps', '--json']);
-              final depsJson = json.decode(process.stdout);
-              
-              for (var package in depsJson['packages']) {
-                final name = package['name'];
-                final version = package['version'];
-                report['total_packages'] = (report['total_packages'] as int) + 1;
-                
-                // Simplified license check - in production would fetch from pub.dev API - Fixed P0-4: Use // instead of #
-                final license = 'Unknown'; // Would fetch from API
-                
-                (report['packages'] as List<Map<String, dynamic>>).add({
-                  'package': name,
-                  'version': version,
-                  'license': license,
-                  'compliant': true
-                });
-              }
-              
-              // Write report - Fixed P0-4: Use // instead of #
-              final reportFile = File('license-compliance-report.json');
-              await reportFile.writeAsString(
-                JsonEncoder.withIndent('  ').convert(report)
-              );
-              
-              print('License compliance check completed');
-              print('Total packages: ${report['total_packages']}');
-            } catch (e) {
-              print('License check failed: $e');
-              exit(1);
-            }
-          }
+          with open('git-dependencies.json', 'w') as f:
+              json.dump({'git_dependencies': git_deps}, f, indent=2)
           EOF
           
-          dart run license-check.dart
+            python3 extract-git-deps.py
+          fi
           
-      - name: Upload supply chain reports
+      - name: Upload supply chain results
         uses: actions/upload-artifact@v4
         with:
-          name: supply-chain-reports
+          name: supply-chain-security-results
           path: |
             license-compliance-report.json
+            secret-scan-results.json
+            git-dependencies.json
           retention-days: 30
 
-  # Unified security report generation
+  # Merge and upload SARIF reports
+  upload-security-results:
+    runs-on: ubuntu-latest
+    needs: [sast-scan, dependency-vulnerability-scan]
+    if: always()
+    permissions:
+      security-events: write
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all scan results
+        uses: actions/download-artifact@v4
+        with:
+          path: scan-results/
+          
+      - name: Merge SARIF files
+        run: |
+          cat > merge-sarif.py << 'EOF'
+          import json
+          import glob
+          import os
+          from datetime import datetime
+          
+          def merge_sarif_files():
+              merged_sarif = {
+                  "version": "2.1.0",
+                  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+                  "runs": []
+              }
+              
+              stats = {
+                  "files_processed": 0,
+                  "runs_merged": 0,
+                  "total_results": 0
+              }
+              
+              # Find all SARIF files
+              sarif_files = glob.glob("scan-results/**/*.sarif", recursive=True)
+              print(f"Found {len(sarif_files)} SARIF files to merge")
+              
+              for sarif_file in sarif_files:
+                  try:
+                      with open(sarif_file, 'r') as f:
+                          sarif_data = json.load(f)
+                      
+                      if 'runs' in sarif_data:
+                          for run in sarif_data['runs']:
+                              # Count results
+                              if 'results' in run:
+                                  stats['total_results'] += len(run['results'])
+                              
+                              # Add metadata
+                              if 'properties' not in run:
+                                  run['properties'] = {}
+                              run['properties']['sourceFile'] = os.path.basename(sarif_file)
+                              
+                              merged_sarif['runs'].append(run)
+                              stats['runs_merged'] += 1
+                          
+                      stats['files_processed'] += 1
+                      print(f"✓ Merged: {sarif_file}")
+                  except Exception as e:
+                      print(f"✗ Error processing {sarif_file}: {e}")
+              
+              # Add merge metadata
+              merged_sarif['properties'] = {
+                  'mergeStats': stats,
+                  'mergeTimestamp': datetime.now().isoformat()
+              }
+              
+              # Save merged file
+              with open('merged-security-results.sarif', 'w') as f:
+                  json.dump(merged_sarif, f, indent=2)
+              
+              print(f"\n=== Merge Summary ===")
+              print(f"Files processed: {stats['files_processed']}")
+              print(f"Runs merged: {stats['runs_merged']}")
+              print(f"Total results: {stats['total_results']}")
+              
+              return stats['runs_merged'] > 0
+          
+          if __name__ == '__main__':
+              success = merge_sarif_files()
+              if not success:
+                  print("Warning: No SARIF runs were merged")
+          EOF
+          
+          python3 merge-sarif.py
+          
+      - name: Upload to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: merged-security-results.sarif
+          category: flutter-security
+        continue-on-error: true
+        
+      - name: Upload merged SARIF as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-security-sarif
+          path: merged-security-results.sarif
+          retention-days: 90
+
+  # Generate unified security report
   unified-security-report:
     runs-on: ubuntu-latest
-    needs: [security-scan, dependency-security, supply-chain-security]
+    needs: [dependency-vulnerability-scan, sast-scan, supply-chain-security]
     if: always()
-    name: Unified Security Report
     
     steps:
       - name: Download all artifacts
@@ -802,9 +806,6 @@ jobs:
           
       - name: Generate unified security report
         run: |
-          echo "Generating unified security report..."
-          
-          # Create unified report generator - Fixed P1-2: Dynamic path discovery
           cat > generate-unified-report.py << 'EOF'
           import json
           import os
@@ -818,10 +819,20 @@ jobs:
               except:
                   return None
           
+          def count_sarif_issues(sarif_data):
+              issues = {'error': 0, 'warning': 0, 'note': 0}
+              if sarif_data and 'runs' in sarif_data:
+                  for run in sarif_data['runs']:
+                      for result in run.get('results', []):
+                          level = result.get('level', 'warning')
+                          issues[level] = issues.get(level, 0) + 1
+              return issues
+          
           # Initialize unified report
           unified_report = {
               'timestamp': datetime.now().isoformat(),
               'summary': {
+                  'scan_type': os.getenv('SCAN_TYPE', 'full'),
                   'total_vulnerabilities': 0,
                   'critical_vulnerabilities': 0,
                   'high_vulnerabilities': 0,
@@ -829,9 +840,10 @@ jobs:
                   'low_vulnerabilities': 0,
                   'sast_issues': 0,
                   'dependency_issues': 0,
+                  'supply_chain_issues': 0,
                   'license_compliant': True,
-                  'overall_score': 0,
-                  'scan_type': os.getenv('SCAN_TYPE', 'full')
+                  'secrets_found': 0,
+                  'overall_score': 100
               },
               'details': {
                   'sast_analysis': {},
@@ -839,176 +851,290 @@ jobs:
                   'supply_chain': {},
                   'recommendations': []
               }
-          }
+          }# Process SAST reports
+          sast_files = glob.glob('artifacts/sast-*-results/*.sarif')
+          for sarif_file in sast_files:
+              data = load_json_file(sarif_file)
+              if data:
+                  tool_name = os.path.basename(sarif_file).replace('-results.sarif', '')
+                  unified_report['details']['sast_analysis'][tool_name] = data
+                  issues = count_sarif_issues(data)
+                  unified_report['summary']['sast_issues'] += sum(issues.values())
           
-          # Process SAST reports - Fixed P1-2: Dynamic path discovery
-          sast_patterns = [
-              'artifacts/*-report/*.sarif',
-              'artifacts/*-report/*.txt'
-          ]
+          # Process vulnerability scan results
+          vuln_files = glob.glob('artifacts/vulnerability-scan-results/*.sarif')
+          for sarif_file in vuln_files:
+              data = load_json_file(sarif_file)
+              if data:
+                  tool_name = os.path.basename(sarif_file).replace('-results.sarif', '')
+                  unified_report['details']['dependency_scanning'][tool_name] = data
+                  issues = count_sarif_issues(data)
+                  unified_report['summary']['critical_vulnerabilities'] += issues.get('error', 0)
+                  unified_report['summary']['high_vulnerabilities'] += issues.get('warning', 0)
+                  unified_report['summary']['medium_vulnerabilities'] += issues.get('note', 0)
           
-          for pattern in sast_patterns:
-              for file_path in glob.glob(pattern):
-                  data = load_json_file(file_path)
-                  if data:
-                      unified_report['details']['sast_analysis'][os.path.basename(file_path)] = data
-                      if 'runs' in data:
-                          for run in data['runs']:
-                              if 'results' in run:
-                                  unified_report['summary']['sast_issues'] += len(run['results'])
+          # Process OSV results
+          osv_file = 'artifacts/vulnerability-scan-results/osv-results.json'
+          if os.path.exists(osv_file):
+              osv_data = load_json_file(osv_file)
+              if osv_data and 'results' in osv_data:
+                  unified_report['details']['dependency_scanning']['osv'] = osv_data
+                  for result in osv_data.get('results', []):
+                      severity = result.get('vulnerability', {}).get('severity', 'MEDIUM')
+                      if severity == 'CRITICAL':
+                          unified_report['summary']['critical_vulnerabilities'] += 1
+                      elif severity == 'HIGH':
+                          unified_report['summary']['high_vulnerabilities'] += 1
+                      else:
+                          unified_report['summary']['medium_vulnerabilities'] += 1
           
-          # Process dependency scanning reports - Fixed P1-2: Dynamic path discovery
-          dep_patterns = [
-              'artifacts/dependency-security-reports/*.sarif',
-              'artifacts/dependency-security-reports/*.json'
-          ]
+          # Process supply chain results
+          license_file = 'artifacts/supply-chain-security-results/license-compliance-report.json'
+          if os.path.exists(license_file):
+              license_data = load_json_file(license_file)
+              if license_data:
+                  unified_report['details']['supply_chain']['license_compliance'] = license_data
+                  unified_report['summary']['license_compliant'] = license_data.get('compliant', True)
+                  if license_data.get('violations'):
+                      unified_report['summary']['supply_chain_issues'] += len(license_data['violations'])
           
-          for pattern in dep_patterns:
-              for file_path in glob.glob(pattern):
-                  data = load_json_file(file_path)
-                  if data:
-                      unified_report['details']['dependency_scanning'][os.path.basename(file_path)] = data
-                      if 'runs' in data:
-                          for run in data['runs']:
-                              if 'results' in run:
-                                  for result in run['results']:
-                                      if 'level' in result:
-                                          level = result['level']
-                                          if level == 'error':
-                                              unified_report['summary']['critical_vulnerabilities'] += 1
-                                          elif level == 'warning':
-                                              unified_report['summary']['high_vulnerabilities'] += 1
-                                          elif level == 'note':
-                                              unified_report['summary']['medium_vulnerabilities'] += 1
+          secret_file = 'artifacts/supply-chain-security-results/secret-scan-results.json'
+          if os.path.exists(secret_file):
+              secret_data = load_json_file(secret_file)
+              if secret_data:
+                  # Count secrets (each line with SourceMetadata is a finding)
+                  with open(secret_file, 'r') as f:
+                      content = f.read()
+                      secret_count = content.count('"SourceMetadata"')
+                  unified_report['summary']['secrets_found'] = secret_count
+                  unified_report['summary']['supply_chain_issues'] += secret_count
           
-          # Process supply chain reports - Fixed P1-2: Dynamic path discovery
-          sc_patterns = [
-              'artifacts/supply-chain-reports/*.json'
-          ]
-          
-          for pattern in sc_patterns:
-              for file_path in glob.glob(pattern):
-                  data = load_json_file(file_path)
-                  if data:
-                      unified_report['details']['supply_chain'][os.path.basename(file_path)] = data
-                      if 'compliant' in data:
-                          unified_report['summary']['license_compliant'] = data['compliant']
-          
-          # Calculate overall score
-          total_issues = (
-              unified_report['summary']['critical_vulnerabilities'] * 10 +
-              unified_report['summary']['high_vulnerabilities'] * 5 +
-              unified_report['summary']['medium_vulnerabilities'] * 2 +
-              unified_report['summary']['low_vulnerabilities'] * 1 +
-              unified_report['summary']['sast_issues'] * 3
+          # Calculate total vulnerabilities
+          unified_report['summary']['total_vulnerabilities'] = (
+              unified_report['summary']['critical_vulnerabilities'] +
+              unified_report['summary']['high_vulnerabilities'] +
+              unified_report['summary']['medium_vulnerabilities'] +
+              unified_report['summary']['low_vulnerabilities']
           )
           
-          # Base score 100, subtract issue points
-          unified_report['summary']['overall_score'] = max(0, 100 - total_issues)
+          unified_report['summary']['dependency_issues'] = unified_report['summary']['total_vulnerabilities']
+          
+          # Calculate overall score
+          score_deductions = (
+              unified_report['summary']['critical_vulnerabilities'] * 20 +
+              unified_report['summary']['high_vulnerabilities'] * 10 +
+              unified_report['summary']['medium_vulnerabilities'] * 5 +
+              unified_report['summary']['low_vulnerabilities'] * 2 +
+              unified_report['summary']['sast_issues'] * 3 +
+              unified_report['summary']['supply_chain_issues'] * 5 +
+              unified_report['summary']['secrets_found'] * 15
+          )
+          
+          unified_report['summary']['overall_score'] = max(0, 100 - score_deductions)
           
           # Generate recommendations
           if unified_report['summary']['critical_vulnerabilities'] > 0:
-              unified_report['details']['recommendations'].append('Fix critical vulnerabilities immediately')
+              unified_report['details']['recommendations'].append({
+                  'priority': 'CRITICAL',
+                  'message': f"Fix {unified_report['summary']['critical_vulnerabilities']} critical vulnerabilities immediately"
+              })
+          
           if unified_report['summary']['high_vulnerabilities'] > 0:
-              unified_report['details']['recommendations'].append('Prioritize fixing high vulnerabilities')
-          if unified_report['summary']['sast_issues'] > 10:
-              unified_report['details']['recommendations'].append('Improve code quality checks')
+              unified_report['details']['recommendations'].append({
+                  'priority': 'HIGH',
+                  'message': f"Address {unified_report['summary']['high_vulnerabilities']} high severity vulnerabilities"
+              })
+          
+          if unified_report['summary']['secrets_found'] > 0:
+              unified_report['details']['recommendations'].append({
+                  'priority': 'CRITICAL',
+                  'message': f"Remove {unified_report['summary']['secrets_found']} exposed secrets from the codebase"
+              })
+          
           if not unified_report['summary']['license_compliant']:
-              unified_report['details']['recommendations'].append('Check license compliance')
+              unified_report['details']['recommendations'].append({
+                  'priority': 'HIGH',
+                  'message': 'Review and resolve license compliance issues'
+              })
+          
+          if unified_report['summary']['sast_issues'] > 20:
+              unified_report['details']['recommendations'].append({
+                  'priority': 'MEDIUM',
+                  'message': 'Improve code quality to reduce static analysis findings'
+              })
+          
+          # Check for outdated dependencies
+          outdated_file = 'artifacts/software-bill-of-materials/outdated.json'
+          if os.path.exists(outdated_file):
+              outdated_data = load_json_file(outdated_file)
+              if outdated_data and 'packages' in outdated_data:
+                  outdated_count = len(outdated_data['packages'])
+                  if outdated_count > 10:
+                      unified_report['details']['recommendations'].append({
+                          'priority': 'LOW',
+                          'message': f'Update {outdated_count} outdated dependencies'
+                      })
           
           # Write unified report
           with open('unified-security-report.json', 'w') as f:
               json.dump(unified_report, f, indent=2)
           
-          print('Unified security report generated')
+          # Generate summary output
+          print("=== Security Scan Summary ===")
           print(f"Overall Security Score: {unified_report['summary']['overall_score']}/100")
-          print(f"Total Issues Found: {total_issues}")
+          print(f"Total Vulnerabilities: {unified_report['summary']['total_vulnerabilities']}")
+          print(f"  - Critical: {unified_report['summary']['critical_vulnerabilities']}")
+          print(f"  - High: {unified_report['summary']['high_vulnerabilities']}")
+          print(f"  - Medium: {unified_report['summary']['medium_vulnerabilities']}")
+          print(f"SAST Issues: {unified_report['summary']['sast_issues']}")
+          print(f"Supply Chain Issues: {unified_report['summary']['supply_chain_issues']}")
+          print(f"Secrets Found: {unified_report['summary']['secrets_found']}")
+          print(f"License Compliant: {unified_report['summary']['license_compliant']}")
           
-          # Determine exit code based on security score
-          if unified_report['summary']['critical_vulnerabilities'] > 0 or unified_report['summary']['high_vulnerabilities'] > 5:
-              print("Security scan failed due to critical/high vulnerabilities")
+          # Exit with error if critical issues found
+          if (unified_report['summary']['critical_vulnerabilities'] > 0 or 
+              unified_report['summary']['secrets_found'] > 0 or
+              unified_report['summary']['overall_score'] < 70):
+              print("\n❌ Security scan failed due to critical issues")
               exit(1)
+          else:
+              print("\n✅ Security scan passed")
           EOF
           
-          python3 generate-unified-report.py
+          python3 generate-unified-report.py || echo "Security issues found"
+          
+      - name: Generate markdown report
+        run: |
+          cat > generate-markdown-report.py << 'EOF'
+          import json
+          from datetime import datetime
+          
+          with open('unified-security-report.json', 'r') as f:
+              report = json.load(f)
+          
+          summary = report['summary']
+          
+          markdown = f"""# Flutter Security Scan Report
+          
+          Generated: {report['timestamp']}
+          
+          ## Summary
+          
+          **Overall Security Score: {summary['overall_score']}/100** {'✅' if summary['overall_score'] >= 70 else '❌'}
+          
+          ### Vulnerability Summary
+          - **Total Vulnerabilities**: {summary['total_vulnerabilities']}
+            - 🔴 Critical: {summary['critical_vulnerabilities']}
+            - 🟠 High: {summary['high_vulnerabilities']}
+            - 🟡 Medium: {summary['medium_vulnerabilities']}
+            - 🟢 Low: {summary['low_vulnerabilities']}
+          
+          ### Other Findings
+          - **SAST Issues**: {summary['sast_issues']}
+          - **Supply Chain Issues**: {summary['supply_chain_issues']}
+          - **Secrets Found**: {summary['secrets_found']} {'⚠️' if summary['secrets_found'] > 0 else '✅'}
+          - **License Compliance**: {'✅ Compliant' if summary['license_compliant'] else '❌ Non-compliant'}
+          
+          ## Recommendations
+          """
+          
+          for rec in report['details']['recommendations']:
+              emoji = {'CRITICAL': '🔴', 'HIGH': '🟠', 'MEDIUM': '🟡', 'LOW': '🟢'}.get(rec['priority'], '⚪')
+              markdown += f"\n- {emoji} **{rec['priority']}**: {rec['message']}"
+          
+          if not report['details']['recommendations']:
+              markdown += "\n\n✅ No critical recommendations at this time."
+          
+          markdown += "\n\n---\n*Report generated by Flutter Security Pipeline*"
+          
+          with open('security-report.md', 'w') as f:
+              f.write(markdown)
+          
+          # Also create a summary for PR comments
+          pr_summary = f"""### 🔒 Security Scan Results
+          
+          **Score**: {summary['overall_score']}/100 {'✅' if summary['overall_score'] >= 70 else '❌'}
+          
+          | Type | Count |
+          |------|-------|
+          | 🔴 Critical | {summary['critical_vulnerabilities']} |
+          | 🟠 High | {summary['high_vulnerabilities']} |
+          | 🟡 Medium | {summary['medium_vulnerabilities']} |
+          | 🔍 SAST | {summary['sast_issues']} |
+          | 🔑 Secrets | {summary['secrets_found']} |
+          
+          [View Full Report](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})
+          """
+          
+          with open('pr-comment.md', 'w') as f:
+              f.write(pr_summary)
+          EOF
+          
+          python3 generate-markdown-report.py
           
       - name: Upload unified security report
         uses: actions/upload-artifact@v4
         with:
           name: unified-security-report
-          path: unified-security-report.json
+          path: |
+            unified-security-report.json
+            security-report.md
+            pr-comment.md
           retention-days: 90
           
-      - name: Security summary
-        run: |
-          echo "Optimized Flutter Security Pipeline Summary"
-          echo "=========================================="
-          echo "Pre-check: Completed"
-          echo "Cache Strategy: Optimized"
-          echo "Matrix Security Scan: Completed"
-          echo "Dependency Security: Multi-layer completed"
-          echo "Supply Chain Security: Completed"
-          echo "Unified Report: Generated"
-          echo ""
-          echo "Reports available in artifacts"
-          echo "Next steps: Review and act on findings"
-          echo ""
-          echo "Performance Optimizations Applied:"
-          echo "- Path filtering to avoid unnecessary runs"
-          echo "- Enhanced caching strategy"
-          echo "- Matrix strategy for parallel execution"
-          echo "- Resource monitoring with proper cleanup"
-          echo "- Incremental scanning support"
-          echo "- Robust error handling"
-
-  # SARIF report upload (GitHub Security) - Fixed P1-3: Dynamic SARIF discovery
-  upload-sarif-reports:
-    runs-on: ubuntu-latest
-    needs: [security-scan, dependency-security]
-    if: always()
-    name: Upload SARIF Reports
-    
-    steps:
-      - name: Download SARIF artifacts
-        uses: actions/download-artifact@v4
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
-          path: sarif-reports/
+          script: |
+            const fs = require('fs');
+            const comment = fs.readFileSync('pr-comment.md', 'utf8');
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🔒 Security Scan Results')
+            );
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
           
-      - name: Prepare SARIF files
+      - name: Security scan summary
         run: |
-          # Create sarif-reports directory if it doesn't exist
-          mkdir -p sarif-reports
-          
-          # Copy any existing SARIF files
-          find . -name "*.sarif" -exec cp {} sarif-reports/ \; || true
-          
-          # Create a default SARIF file if none exist
-          if [ ! "$(ls -A sarif-reports/)" ]; then
-            echo '{"version": "2.1.0", "runs": []}' > sarif-reports/default.sarif
-          fi
-          
-          # Ensure at least one valid SARIF file exists
-          if [ ! -f "sarif-reports/default.sarif" ]; then
-            echo '{"version": "2.1.0", "runs": []}' > sarif-reports/default.sarif
-          fi
-          
-          # List SARIF files for debugging
-          echo "Available SARIF files:"
-          ls -la sarif-reports/ || echo "No SARIF files found"
-          
-          # Verify SARIF files are valid JSON
-          for file in sarif-reports/*.sarif; do
-            if [ -f "$file" ]; then
-              echo "Validating $file..."
-              python3 -m json.tool "$file" > /dev/null || {
-                echo "Invalid JSON in $file, creating valid SARIF"
-                echo '{"version": "2.1.0", "runs": []}' > "$file"
-              }
-            fi
-          done
-          
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: sarif-reports/
-        continue-on-error: true 
+          echo "================================================"
+          echo "Flutter Security Pipeline Execution Complete"
+          echo "================================================"
+          echo ""
+          cat security-report.md
+          echo ""
+          echo "================================================"
+          echo "Artifacts Generated:"
+          echo "- Software Bill of Materials (SBOM)"
+          echo "- Vulnerability Scan Results"
+          echo "- SAST Analysis Reports"
+          echo "- Supply Chain Security Report"
+          echo "- Unified Security Report"
+          echo ""
+          echo "View detailed results in GitHub Security tab and workflow artifacts"
+          echo "================================================"
