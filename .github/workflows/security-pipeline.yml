@@ -1900,7 +1900,7 @@ jobs:
                 await File("flutter-analyzer-results.sarif").writeAsString(
                     JsonEncoder.withIndent("  ").convert(sarif));
               }
-              EOF
+          EOF
               
               dart run convert-to-sarif.dart
               ;;
