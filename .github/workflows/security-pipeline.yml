@@ -208,6 +208,10 @@ jobs:
         run: |
           echo "Checking known vulnerabilities..."
           
+          # Ensure Dart is available
+          which dart || echo "Dart not found in PATH"
+          dart --version || echo "Dart version check failed"
+          
           # Create vulnerability check script with better error handling
           cat > check-known-vulns.dart << 'EOF'
           import 'dart:io';
@@ -224,7 +228,7 @@ jobs:
           };
           
           void main() async {
-            final report = {
+            final report = <String, dynamic>{
               'timestamp': DateTime.now().toIso8601String(),
               'vulnerabilities': <Map<String, dynamic>>[],
               'total_checked': 0,
@@ -266,8 +270,8 @@ jobs:
                         // Check if this package is vulnerable
                         if (vulnerablePackages.containsKey(currentPackage)) {
                           if (vulnerablePackages[currentPackage]!.contains(currentVersion)) {
-                            report['vulnerable_count']++;
-                            report['vulnerabilities'].add({
+                            report['vulnerable_count'] = (report['vulnerable_count'] as int) + 1;
+                            (report['vulnerabilities'] as List<Map<String, dynamic>>).add({
                               'package': currentPackage,
                               'version': currentVersion,
                               'severity': 'HIGH',
@@ -276,7 +280,7 @@ jobs:
                             });
                           }
                         }
-                        report['total_checked']++;
+                        report['total_checked'] = (report['total_checked'] as int) + 1;
                       }
                     }
                   }
@@ -294,7 +298,7 @@ jobs:
               print('Vulnerable: ${report['vulnerable_count']} packages');
               
               // Exit with code 1 if vulnerabilities found - Fixed P0-4: Use // instead of #
-              if (report['vulnerable_count'] > 0) {
+              if ((report['vulnerable_count'] as int) > 0) {
                 exit(1);
               }
             } catch (e) {
@@ -572,6 +576,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          
+      - name: Get dependencies
+        run: flutter pub get
+        
       # Secret scanning to prevent leaks - Fixed P2-2: Updated to v3
       - name: Secret Scanning with TruffleHog
         run: |
@@ -620,7 +632,7 @@ jobs:
           ];
           
           void main() async {
-            final report = {
+            final report = <String, dynamic>{
               'timestamp': DateTime.now().toIso8601String(),
               'compliant': true,
               'packages': <Map<String, dynamic>>[],
@@ -637,12 +649,12 @@ jobs:
               for (var package in depsJson['packages']) {
                 final name = package['name'];
                 final version = package['version'];
-                report['total_packages']++;
+                report['total_packages'] = (report['total_packages'] as int) + 1;
                 
                 // Simplified license check - in production would fetch from pub.dev API - Fixed P0-4: Use // instead of #
                 final license = 'Unknown'; // Would fetch from API
                 
-                report['packages'].add({
+                (report['packages'] as List<Map<String, dynamic>>).add({
                   'package': name,
                   'version': version,
                   'license': license,
