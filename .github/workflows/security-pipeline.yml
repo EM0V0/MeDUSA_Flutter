@@ -118,7 +118,7 @@ jobs:
           fi
           
           # P0-5: Export SCAN_TYPE to environment
-          echo "SCAN_TYPE=${{ steps.check.outputs.scan_type }}" >> $GITHUB_ENV
+          echo "SCAN_TYPE=full" >> $GITHUB_ENV
 
   # Cache setup - Enhanced caching strategy
   setup-and-cache:
