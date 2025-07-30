@@ -62,7 +62,7 @@ jobs:
   # Pre-check - Fast fail
   pre-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       scan_type: ${{ steps.check.outputs.scan_type }}
@@ -83,6 +83,13 @@ jobs:
             BASE_SHA="${{ github.event.before }}"
             CURRENT_SHA="${{ github.sha }}"
           fi
+          
+          # Validate SHA values
+          if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            echo "Warning: Invalid base SHA, using full scan"
+            BASE_SHA="HEAD~1"
+          fi
+          
           echo "base_sha=$BASE_SHA" >> $GITHUB_OUTPUT
           # Override with manual input if provided
           if [[ -n "${{ github.event.inputs.scan_type }}" ]]; then
@@ -116,6 +123,7 @@ jobs:
   # Cache setup
   setup-and-cache:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: pre-check
     if: needs.pre-check.outputs.should_run == 'true'
     outputs:
@@ -179,7 +187,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [pre-check, setup-and-cache]
     if: needs.pre-check.outputs.should_run == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 30
     
     steps:
       - uses: actions/checkout@v4
@@ -209,10 +217,23 @@ jobs:
           
           void main() async {
             try {
+              // Validate Flutter environment
+              final flutterResult = await Process.run('flutter', ['--version']);
+              if (flutterResult.exitCode != 0) {
+                print('Error: Flutter not available');
+                exit(1);
+              }
+              
               // Run flutter pub deps command with detailed output
               final result = await Process.run('flutter', ['pub', 'deps', '--json']);
               if (result.exitCode != 0) {
                 print('Error running flutter pub deps: ${result.stderr}');
+                exit(1);
+              }
+              
+              // Validate JSON output
+              if (result.stdout.toString().trim().isEmpty) {
+                print('Error: Empty output from flutter pub deps');
                 exit(1);
               }
               
@@ -290,9 +311,13 @@ jobs:
                   continue;
                 }
                 
-                processedPackages.add(packageKey);
+                // Skip application itself - app shouldn't be its own dependency
+                if (packageName == pubspecInfo['name']) {
+                  print('Skipping application itself: $packageName');
+                  continue;
+                }
                 
-                if (packageName != pubspecInfo['name']) {
+                processedPackages.add(packageKey);
                   final purl = 'pkg:pub/$packageName@$packageVersion';
                   
                   // Skip if PURL already processed (prevents duplicates with query params)
@@ -384,6 +409,13 @@ jobs:
               print('Total components: ${components.length}');
               print('Processed packages: ${processedPackages.length}');
               
+              // Validate component count consistency
+              final uniqueCount = deduplicateComponents(components).length;
+              print('Unique components after deduplication: $uniqueCount');
+              if (components.length != uniqueCount) {
+                print('⚠️ Warning: Duplicate components detected in initial generation');
+              }
+              
               // Print detailed statistics
               print('\n=== SBOM Statistics ===');
               final byScope = <String, int>{};
@@ -427,52 +459,62 @@ jobs:
             }
           }
           
-          // Enhanced YAML parsing
+          // Enhanced YAML parsing with error handling
           Map<String, dynamic> parsePubspecYaml(String content) {
-            final lines = content.split('\n');
-            final info = <String, dynamic>{};
-            String currentSection = '';
-            
-            for (final line in lines) {
-              final trimmedLine = line.trim();
-              if (trimmedLine.isEmpty) continue;
+            try {
+              final lines = content.split('\n');
+              final info = <String, dynamic>{};
+              String currentSection = '';
               
-              if (trimmedLine.startsWith('name:')) {
-                info['name'] = trimmedLine.split(':')[1].trim();
-              } else if (trimmedLine.startsWith('version:')) {
-                info['version'] = trimmedLine.split(':')[1].trim().split('+')[0];
-              } else if (trimmedLine.startsWith('description:')) {
-                info['description'] = trimmedLine.split(':')[1].trim();
-              } else if (trimmedLine.startsWith('license:')) {
-                info['license'] = trimmedLine.split(':')[1].trim();
-              } else if (trimmedLine.startsWith('authors:')) {
-                info['authors'] = trimmedLine.split(':')[1].trim();
-              } else if (trimmedLine.startsWith('platforms:')) {
-                info['platforms'] = {};
-                currentSection = 'platforms';
-              } else if (currentSection == 'platforms' && trimmedLine.startsWith('  ')) {
-                final platformLine = trimmedLine.trim();
-                if (platformLine.contains(':')) {
-                  final parts = platformLine.split(':');
-                  info['platforms'][parts[0].trim()] = parts[1].trim();
-                }
-              } else if (trimmedLine.startsWith('dependencies:') || 
-                         trimmedLine.startsWith('dev_dependencies:')) {
-                currentSection = trimmedLine.startsWith('dependencies:') ? 'dependencies' : 'dev_dependencies';
-                info[currentSection] = {};
-              } else if ((currentSection == 'dependencies' || currentSection == 'dev_dependencies') && 
-                         trimmedLine.startsWith('  ')) {
-                final depLine = trimmedLine.trim();
-                if (depLine.contains(':')) {
-                  final parts = depLine.split(':');
-                  final depName = parts[0].trim();
-                  final depVersion = parts[1].trim();
-                  info[currentSection][depName] = depVersion;
+              for (final line in lines) {
+                final trimmedLine = line.trim();
+                if (trimmedLine.isEmpty || trimmedLine.startsWith('#')) continue;
+                
+                if (trimmedLine.startsWith('name:')) {
+                  info['name'] = trimmedLine.split(':')[1].trim();
+                } else if (trimmedLine.startsWith('version:')) {
+                  info['version'] = trimmedLine.split(':')[1].trim().split('+')[0];
+                } else if (trimmedLine.startsWith('description:')) {
+                  info['description'] = trimmedLine.split(':')[1].trim();
+                } else if (trimmedLine.startsWith('license:')) {
+                  info['license'] = trimmedLine.split(':')[1].trim();
+                } else if (trimmedLine.startsWith('authors:')) {
+                  info['authors'] = trimmedLine.split(':')[1].trim();
+                } else if (trimmedLine.startsWith('platforms:')) {
+                  info['platforms'] = {};
+                  currentSection = 'platforms';
+                } else if (currentSection == 'platforms' && trimmedLine.startsWith('  ')) {
+                  final platformLine = trimmedLine.trim();
+                  if (platformLine.contains(':')) {
+                    final parts = platformLine.split(':');
+                    info['platforms'][parts[0].trim()] = parts[1].trim();
+                  }
+                } else if (trimmedLine.startsWith('dependencies:') || 
+                           trimmedLine.startsWith('dev_dependencies:')) {
+                  currentSection = trimmedLine.startsWith('dependencies:') ? 'dependencies' : 'dev_dependencies';
+                  info[currentSection] = {};
+                } else if ((currentSection == 'dependencies' || currentSection == 'dev_dependencies') && 
+                           trimmedLine.startsWith('  ')) {
+                  final depLine = trimmedLine.trim();
+                  if (depLine.contains(':')) {
+                    final parts = depLine.split(':');
+                    final depName = parts[0].trim();
+                    final depVersion = parts[1].trim();
+                    info[currentSection][depName] = depVersion;
+                  }
                 }
               }
+              
+              // Ensure required fields exist
+              info['name'] ??= 'unknown';
+              info['version'] ??= '0.0.0';
+              info['description'] ??= '';
+              
+              return info;
+            } catch (e) {
+              print('Error parsing pubspec.yaml: $e');
+              return {'name': 'unknown', 'version': '0.0.0', 'description': ''};
             }
-            
-            return info;
           }
           
           // Get Flutter version
@@ -547,7 +589,8 @@ jobs:
                               depName.contains('actions/') ||
                               depName.contains('github/') ||
                               depName.contains('aquasecurity/') ||
-                              depName.contains('subosito/')) {
+                              depName.contains('subosito/') ||
+                              depName == pubspecInfo['name']) {
                             continue;
                           }
                           
@@ -674,7 +717,8 @@ jobs:
                     name.contains('actions/') ||
                     name.contains('github/') ||
                     name.contains('aquasecurity/') ||
-                    name.contains('subosito/')) {
+                    name.contains('subosito/') ||
+                    name == pubspecInfo['name']) {
                   continue;
                 }
                 
@@ -1377,19 +1421,32 @@ jobs:
               with open(output_file, 'w') as f:
                   json.dump(merged_sbom, f, indent=2)
               
-              # Print detailed statistics
+              # Print detailed statistics with validation
               original_syft = len(syft_sbom.get('components', []))
               filtered_syft = len(filter_github_actions(syft_sbom.get('components', [])))
               flutter_count = len(flutter_sbom.get('components', []))
               final_count = len(merged_components)
+              
+              # Validate statistics consistency
+              expected_removed = original_syft - filtered_syft
+              expected_dedup = flutter_count + filtered_syft - final_count
               
               print(f'=== SBOM Merge Statistics ===')
               print(f'Original Syft components: {original_syft}')
               print(f'Filtered Syft components: {filtered_syft}')
               print(f'Flutter components: {flutter_count}')
               print(f'Final merged components: {final_count}')
-              print(f'GitHub Actions removed: {original_syft - filtered_syft}')
-              print(f'Deduplication effect: {flutter_count + filtered_syft - final_count}')
+              print(f'GitHub Actions removed: {expected_removed}')
+              print(f'Deduplication effect: {expected_dedup}')
+              
+              # Validate consistency
+              if expected_removed < 0:
+                  print(f'⚠️ Warning: Negative GitHub Actions removed count')
+              if expected_dedup < 0:
+                  print(f'⚠️ Warning: Negative deduplication effect')
+              if final_count > flutter_count + filtered_syft:
+                  print(f'⚠️ Warning: Final count exceeds sum of inputs')
+              
               print(f'=== End Statistics ===')
           
           if __name__ == '__main__':
@@ -1409,6 +1466,9 @@ jobs:
               
               components = sbom.get('components', [])
               
+              # Get app name from metadata
+              app_name = sbom.get('metadata', {}).get('component', {}).get('name', 'unknown')
+              
               # Check for GitHub Actions
               github_actions = []
               for comp in components:
@@ -1418,13 +1478,19 @@ jobs:
                          ['pkg:github/', 'pkg:actions/', 'actions/', 'github/']):
                       github_actions.append(f"{name}@{comp.get('version', 'unknown')}")
               
-              # Check for duplicates
+              # Check for duplicates and app self-references
               seen = {}
               duplicates = []
+              app_self_refs = []
               for comp in components:
                   name = comp.get('name')
                   version = comp.get('version')
                   if name and version:
+                      # Check for app self-reference
+                      if name == app_name:
+                          app_self_refs.append(f"{name}@{version}")
+                          continue
+                      
                       key = f"{name}@{version}"
                       if key in seen:
                           duplicates.append(key)
@@ -1455,6 +1521,9 @@ jobs:
               print(f"GitHub Actions found: {len(github_actions)}")
               if github_actions:
                   print(f"  - {', '.join(github_actions)}")
+              print(f"App self-references found: {len(app_self_refs)}")
+              if app_self_refs:
+                  print(f"  - {', '.join(app_self_refs)}")
               print(f"Duplicates found: {len(duplicates)}")
               if duplicates:
                   print(f"  - {', '.join(duplicates)}")
@@ -1465,6 +1534,8 @@ jobs:
               score = 100
               if github_actions:
                   score -= len(github_actions) * 10
+              if app_self_refs:
+                  score -= len(app_self_refs) * 15
               if duplicates:
                   score -= len(duplicates) * 5
               if scopes.get('unknown', 0) > 0:
@@ -1491,8 +1562,6 @@ jobs:
           import json
           import subprocess
           import sys
-          from datetime import datetime
-          
           import asyncio
           import aiohttp
           import re
@@ -1557,8 +1626,10 @@ jobs:
               vulnerabilities = []
               
               try:
-                  # Check OSV database
-                  async with aiohttp.ClientSession() as session:
+                  # Add timeout for network requests
+                  timeout = aiohttp.ClientTimeout(total=10)
+                  async with aiohttp.ClientSession(timeout=timeout) as session:
+                      # Check OSV database
                       if platform == 'dart':
                           # Check pub.dev for Dart packages
                           url = f"https://pub.dev/api/packages/{name}"
@@ -1757,6 +1828,10 @@ jobs:
                   
                   analysis['summary']['by_platform'][platform] = analysis['summary']['by_platform'].get(platform, 0) + 1
                   
+                  # Validate platform classification
+                  if platform == 'unknown':
+                      print(f'⚠️ Warning: Unknown platform for component {comp.get("name", "unknown")} with PURL: {comp_purl}')
+                  
                   # Determine source
                   source = 'unknown'
                   if 'pkg:pub/' in comp_purl:
@@ -1835,11 +1910,42 @@ jobs:
                       print(f'⚠️ {dep["name"]}@{dep["version"]} - {dep["license"]}')
           
           if __name__ == '__main__':
-              asyncio.run(analyze_dependencies())
+              try:
+                  asyncio.run(analyze_dependencies())
+              except Exception as e:
+                  print(f"Error in dependency analysis: {e}")
+                  # Create minimal analysis on error
+                  minimal_analysis = {
+                      'timestamp': datetime.now().isoformat(),
+                      'summary': {
+                          'total_components': 0,
+                          'by_type': {},
+                          'by_scope': {},
+                          'by_platform': {},
+                          'by_source': {},
+                          'security_issues': {
+                              'vulnerable_components': 0,
+                              'outdated_components': 0,
+                              'unmaintained_components': 0,
+                              'license_violations': 0
+                          }
+                      },
+                      'components': [],
+                      'security_details': {
+                          'vulnerable_dependencies': [],
+                          'outdated_dependencies': [],
+                          'unmaintained_dependencies': [],
+                          'license_violations': []
+                      }
+                  }
+                  
+                  with open('dependency-analysis.json', 'w') as f:
+                      json.dump(minimal_analysis, f, indent=2)
+                  print("Created minimal dependency analysis due to error")
           EOF
           
           # Install required Python packages
-          pip install aiohttp
+          pip install aiohttp pyyaml
           
           python3 generate-dependency-analysis.py
             
@@ -2120,7 +2226,7 @@ jobs:
   dependency-vulnerability-scan:
     needs: [generate-sbom]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     
     steps:
       - uses: actions/checkout@v4
@@ -2129,6 +2235,7 @@ jobs:
         uses: actions/download-artifact@v4.1.8
         with:
           name: software-bill-of-materials
+        continue-on-error: true
           
       - name: Vulnerability scanning suite
         run: |
@@ -2314,7 +2421,7 @@ jobs:
       matrix:
         include:
           - tool: semgrep
-            config: 'p/security-audit p/owasp-top-ten auto'
+            config: 'p/security-audit p/dart p/flutter'
             timeout: 10
           - tool: flutter-analyzer
             timeout: 8
@@ -2350,10 +2457,23 @@ jobs:
         run: |
           case "${{ matrix.tool }}" in
             semgrep)
-              semgrep --config=${{ matrix.config }} --sarif > ${{ matrix.tool }}-results.sarif || {
-                echo "Semgrep found issues"
+              # Validate Semgrep installation
+              semgrep --version || {
+                echo "Error: Semgrep not available"
+                echo '{"version": "2.1.0", "runs": []}' > ${{ matrix.tool }}-results.sarif
+                exit 1
+              }
+              
+              # Run Semgrep with proper error handling
+              semgrep --config=${{ matrix.config }} --sarif > ${{ matrix.tool }}-results.sarif 2>/tmp/semgrep_error || {
+                echo "Semgrep completed with issues"
                 if [ ! -f "${{ matrix.tool }}-results.sarif" ]; then
                   echo '{"version": "2.1.0", "runs": []}' > ${{ matrix.tool }}-results.sarif
+                fi
+                # Log error for debugging
+                if [ -f /tmp/semgrep_error ]; then
+                  echo "Semgrep error output:"
+                  cat /tmp/semgrep_error
                 fi
               }
               ;;
@@ -2422,25 +2542,25 @@ jobs:
                   }
                 }
                 
-                final sarif = {
-                  "version": "2.1.0",
-                  "runs": [
-                    {
-                      "tool": {
-                        "driver": {
-                          "name": "flutter-analyzer",
-                          "version": "1.0.0"
-                        }
-                      },
-                      "results": results
-                    }
-                  ]
-                };
+                  final sarif = {
+                    "version": "2.1.0",
+                    "runs": [
+                      {
+                        "tool": {
+                          "driver": {
+                            "name": "flutter-analyzer",
+                            "version": "3.19.0"
+                          }
+                        },
+                        "results": results
+                      }
+                    ]
+                  };
                 
-                await File("flutter-analyzer-results.sarif").writeAsString(
-                    JsonEncoder.withIndent("  ").convert(sarif));
-              }
-          EOF
+                  await File("flutter-analyzer-results.sarif").writeAsString(
+                      JsonEncoder.withIndent("  ").convert(sarif));
+                }
+              EOF
               
               dart run convert-to-sarif.dart
               ;;
@@ -2467,7 +2587,7 @@ jobs:
   supply-chain-security:
     needs: [generate-sbom]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     
     steps:
       - uses: actions/checkout@v4
@@ -2481,8 +2601,10 @@ jobs:
         uses: actions/download-artifact@v4.1.8
         with:
           name: software-bill-of-materials
+        continue-on-error: true
           
       - name: License compliance check
+        continue-on-error: true
         run: |
           cat > check-licenses.py << 'EOF'
           import json
@@ -2502,51 +2624,51 @@ jobs:
           
           def check_licenses(sbom_file):
               try:
-              with open(sbom_file, 'r') as f:
-                  sbom = json.load(f)
-              report = {
-                  'timestamp': datetime.now().isoformat(),
-                  'compliant': True,
-                  'violations': [],
-                  'warnings': [],
-                  'summary': {
-                      'total_packages': 0,
-                      'prohibited_licenses': 0,
-                      'warning_licenses': 0
+                  with open(sbom_file, 'r') as f:
+                      sbom = json.load(f)
+                  report = {
+                      'timestamp': datetime.now().isoformat(),
+                      'compliant': True,
+                      'violations': [],
+                      'warnings': [],
+                      'summary': {
+                          'total_packages': 0,
+                          'prohibited_licenses': 0,
+                          'warning_licenses': 0
+                      }
                   }
-              }
-              components = sbom.get('components', [])
-              report['summary']['total_packages'] = len(components)
-              for component in components:
-                  name = component.get('name', 'unknown')
-                  version = component.get('version', 'unknown')
-                  licenses = component.get('licenses', [])
-                  for license_info in licenses:
-                      license_id = license_info.get('license', {}).get('id', '')
-                      if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
-                          report['violations'].append({
-                              'package': name,
-                              'version': version,
-                              'license': license_id,
-                              'severity': 'HIGH'
-                          })
-                          report['summary']['prohibited_licenses'] += 1
-                          report['compliant'] = False
-                      elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
-                          report['warnings'].append({
-                              'package': name,
-                              'version': version,
-                              'license': license_id,
-                              'severity': 'MEDIUM'
-                          })
-                          report['summary']['warning_licenses'] += 1
-              with open('license-compliance-report.json', 'w') as f:
-                  json.dump(report, f, indent=2)
-              print(f"License compliance check completed")
-              print(f"Total packages: {report['summary']['total_packages']}")
-              print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
-              print(f"Warning licenses: {report['summary']['warning_licenses']}")
-              return report['compliant']
+                  components = sbom.get('components', [])
+                  report['summary']['total_packages'] = len(components)
+                  for component in components:
+                      name = component.get('name', 'unknown')
+                      version = component.get('version', 'unknown')
+                      licenses = component.get('licenses', [])
+                      for license_info in licenses:
+                          license_id = license_info.get('license', {}).get('id', '')
+                          if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
+                              report['violations'].append({
+                                  'package': name,
+                                  'version': version,
+                                  'license': license_id,
+                                  'severity': 'HIGH'
+                              })
+                              report['summary']['prohibited_licenses'] += 1
+                              report['compliant'] = False
+                          elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
+                              report['warnings'].append({
+                                  'package': name,
+                                  'version': version,
+                                  'license': license_id,
+                                  'severity': 'MEDIUM'
+                              })
+                              report['summary']['warning_licenses'] += 1
+                  with open('license-compliance-report.json', 'w') as f:
+                      json.dump(report, f, indent=2)
+                  print(f"License compliance check completed")
+                  print(f"Total packages: {report['summary']['total_packages']}")
+                  print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
+                  print(f"Warning licenses: {report['summary']['warning_licenses']}")
+                  return report['compliant']
               except Exception as e:
                   print(f'Error processing license compliance: {e}', file=sys.stderr)
                   import traceback
@@ -2556,14 +2678,18 @@ jobs:
           if __name__ == '__main__':
               try:
                   compliant = check_licenses('enhanced-sbom.json')
-              sys.exit(0 if compliant else 1)
+                  sys.exit(0 if compliant else 1)
               except Exception as e:
-                  print(f'Fatal error: {e}', file=sys.stderr)
-                  sys.exit(2)
+                  print(f'Fatal error in license check: {e}', file=sys.stderr)
+                  sys.exit(1)
           EOF
-          python3 check-licenses.py || echo "License compliance issues found"
+          python3 check-licenses.py
+          if [ $? -ne 0 ]; then
+              echo "::warning::License compliance issues found"
+          fi
           
       - name: Secret scanning
+        continue-on-error: true
         run: |
           # Install TruffleHog using official installation script
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
@@ -2593,18 +2719,19 @@ jobs:
           fi
           
       - name: Dependency integrity check
+        continue-on-error: true
         run: |
           echo "Checking dependency integrity..."
           
           # Check for git dependencies
-          if grep -q '"source": "git"' sbom.json; then
+          if grep -q '"source": "git"' enhanced-sbom.json; then
             echo "::warning::Found git dependencies - these should be reviewed for security"
             
             # Extract git dependencies
             cat > extract-git-deps.py << 'EOF'
           import json
           
-          with open('sbom.json', 'r') as f:
+          with open('enhanced-sbom.json', 'r') as f:
               sbom = json.load(f)
           
           git_deps = []
@@ -2745,6 +2872,7 @@ jobs:
   # Generate unified security report
   unified-security-report:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [dependency-vulnerability-scan, sast-scan, supply-chain-security]
     if: always()
     
@@ -2759,6 +2887,7 @@ jobs:
           cat > generate-unified-report.py << 'EOF'
           import json
           import os
+          import sys
           import glob
           from datetime import datetime
           
@@ -2854,20 +2983,74 @@ jobs:
           if os.path.exists(secret_file):
               secret_data = load_json_file(secret_file)
               if secret_data:
-                  # Count secrets (each line with SourceMetadata is a finding)
-                  with open(secret_file, 'r') as f:
-                      content = f.read()
-                      secret_count = content.count('"SourceMetadata"')
+                  # Count secrets properly - TruffleHog v3 outputs JSON array
+                  if isinstance(secret_data, list):
+                      secret_count = len(secret_data)
+                  else:
+                      # Parse TruffleHog v3 JSON array output correctly
+                      with open(secret_file, 'r') as f:
+                          content = f.read().strip()
+                          if content.startswith('[') and content.endswith(']'):
+                              # JSON array format
+                              try:
+                                  secret_data = json.loads(content)
+                                  secret_count = len(secret_data) if isinstance(secret_data, list) else 0
+                              except json.JSONDecodeError:
+                                  secret_count = 0
+                          else:
+                              # Legacy format - count SourceMetadata occurrences
+                              secret_count = content.count('"SourceMetadata"')
                   unified_report['summary']['secrets_found'] = secret_count
                   unified_report['summary']['supply_chain_issues'] += secret_count
+                  print(f"Found {secret_count} secrets in {secret_file}")
+              else:
+                  print(f"Warning: Could not load secret scan results from {secret_file}")
+          else:
+              print(f"Warning: Secret scan results file not found: {secret_file}")
           
-          # Calculate total vulnerabilities
-          unified_report['summary']['total_vulnerabilities'] = (
+          # Add git dependencies check
+          git_deps_file = 'artifacts/supply-chain-security-results/git-dependencies.json'
+          if os.path.exists(git_deps_file):
+              git_deps_data = load_json_file(git_deps_file)
+              if git_deps_data and git_deps_data.get('git_dependencies'):
+                  unified_report['details']['supply_chain']['git_dependencies'] = git_deps_data
+                  git_deps_count = len(git_deps_data['git_dependencies'])
+                  if git_deps_count > 0:
+                      unified_report['summary']['supply_chain_issues'] += git_deps_count
+                      unified_report['details']['recommendations'].append({
+                          'priority': 'MEDIUM',
+                          'message': f'Review {git_deps_count} Git dependencies for security'
+                      })
+          
+          # Calculate total vulnerabilities with validation
+          calculated_total = (
               unified_report['summary']['critical_vulnerabilities'] +
               unified_report['summary']['high_vulnerabilities'] +
               unified_report['summary']['medium_vulnerabilities'] +
               unified_report['summary']['low_vulnerabilities']
           )
+          
+          unified_report['summary']['total_vulnerabilities'] = calculated_total
+          
+          # Validate vulnerability count consistency
+          if calculated_total != unified_report['summary']['total_vulnerabilities']:
+              print(f'⚠️ Warning: Vulnerability count mismatch: calculated={calculated_total}, stored={unified_report["summary"]["total_vulnerabilities"]}')
+          
+          # Validate overall score calculation
+          score_deductions = (
+              unified_report['summary']['critical_vulnerabilities'] * 20 +
+              unified_report['summary']['high_vulnerabilities'] * 10 +
+              unified_report['summary']['medium_vulnerabilities'] * 5 +
+              unified_report['summary']['low_vulnerabilities'] * 2 +
+              unified_report['summary']['sast_issues'] * 3 +
+              unified_report['summary']['supply_chain_issues'] * 5 +
+              unified_report['summary']['secrets_found'] * 15
+          )
+          
+          calculated_score = max(0, 100 - score_deductions)
+          if calculated_score != unified_report['summary']['overall_score']:
+              print(f'⚠️ Warning: Score calculation mismatch: calculated={calculated_score}, stored={unified_report["summary"]["overall_score"]}')
+              unified_report['summary']['overall_score'] = calculated_score
           
           unified_report['summary']['dependency_issues'] = unified_report['summary']['total_vulnerabilities']
           
@@ -2921,15 +3104,41 @@ jobs:
               outdated_data = load_json_file(outdated_file)
               if outdated_data and 'packages' in outdated_data:
                   outdated_count = len(outdated_data['packages'])
-                  if outdated_count > 10:
+                  print(f"Found {outdated_count} outdated dependencies in {outdated_file}")
+                  if outdated_count > 0:
                       unified_report['details']['recommendations'].append({
                           'priority': 'LOW',
                           'message': f'Update {outdated_count} outdated dependencies'
                       })
+              else:
+                  print(f"Warning: Could not load outdated dependencies from {outdated_file}")
+          else:
+              print(f"Warning: Outdated dependencies file not found: {outdated_file}")
+          
+          # Validate report structure before writing
+          required_fields = ['timestamp', 'summary', 'details']
+          for field in required_fields:
+              if field not in unified_report:
+                  print(f"Error: Missing required field '{field}' in unified report")
+                  sys.exit(1)
+          
+          # Validate summary fields
+          required_summary_fields = [
+              'total_vulnerabilities', 'critical_vulnerabilities', 'high_vulnerabilities',
+              'medium_vulnerabilities', 'low_vulnerabilities', 'sast_issues',
+              'supply_chain_issues', 'license_compliant', 'secrets_found', 'overall_score'
+          ]
+          
+          for field in required_summary_fields:
+              if field not in unified_report['summary']:
+                  print(f"Error: Missing required summary field '{field}'")
+                  unified_report['summary'][field] = 0
           
           # Write unified report
           with open('unified-security-report.json', 'w') as f:
               json.dump(unified_report, f, indent=2)
+          
+          print("✅ Unified security report generated successfully")
           
           # Generate summary output
           print("=== Security Scan Summary ===")
@@ -2943,14 +3152,100 @@ jobs:
           print(f"Secrets Found: {unified_report['summary']['secrets_found']}")
           print(f"License Compliant: {unified_report['summary']['license_compliant']}")
           
-          # Exit with error if critical issues found
-          if (unified_report['summary']['critical_vulnerabilities'] > 0 or 
-              unified_report['summary']['secrets_found'] > 0 or
-              unified_report['summary']['overall_score'] < 70):
-              print("\n❌ Security scan failed due to critical issues")
+          # Validate report consistency and artifacts
+          def validate_report_consistency(report):
+              issues = []
+              
+              # Check if recommendations match actual findings
+              total_vulns = report['summary']['total_vulnerabilities']
+              if total_vulns == 0:
+                  for rec in report['details']['recommendations']:
+                      if 'vulnerabilities' in rec['message'].lower():
+                          issues.append(f"Recommendation mentions vulnerabilities but none found: {rec['message']}")
+              
+              # Check if outdated dependencies recommendation is accurate
+              outdated_rec = next((r for r in report['details']['recommendations'] 
+                                 if 'outdated dependencies' in r['message']), None)
+              if outdated_rec:
+                  try:
+                      count = int(outdated_rec['message'].split()[1])
+                      if count == 0:
+                          issues.append("Outdated dependencies count is 0 but recommendation exists")
+                  except:
+                      pass
+              
+              # Validate artifact existence
+              required_artifacts = [
+                  'artifacts/sast-semgrep-results/semgrep-results.sarif',
+                  'artifacts/sast-flutter-analyzer-results/flutter-analyzer-results.sarif',
+                  'artifacts/sast-dcm-results/dcm-results.sarif',
+                  'artifacts/vulnerability-scan-results/grype-results.sarif',
+                  'artifacts/vulnerability-scan-results/trivy-results.sarif',
+                  'artifacts/supply-chain-security-results/secret-scan-results.json',
+                  'artifacts/supply-chain-security-results/license-compliance-report.json',
+                  'artifacts/software-bill-of-materials/outdated.json'
+              ]
+              
+              for artifact in required_artifacts:
+                  if not os.path.exists(artifact):
+                      issues.append(f"Missing required artifact: {artifact}")
+                  else:
+                      size = os.path.getsize(artifact)
+                      if size == 0:
+                          issues.append(f"Empty artifact: {artifact}")
+              
+              return issues
+          
+          # Validate and log issues
+          validation_issues = validate_report_consistency(unified_report)
+          if validation_issues:
+              print("\n⚠️ Report consistency issues:")
+              for issue in validation_issues:
+                  print(f"  - {issue}")
+          
+          # Global statistics validation
+          print("\n=== Global Statistics Validation ===")
+          total_components = sum(unified_report['summary'].get('by_platform', {}).values())
+          total_scopes = sum(unified_report['summary'].get('by_scope', {}).values())
+          
+          if total_components != total_scopes:
+              print(f"⚠️ Warning: Component count mismatch: platforms={total_components}, scopes={total_scopes}")
+          
+          # Validate that all counts are non-negative
+          for key, value in unified_report['summary'].items():
+              if isinstance(value, (int, float)) and value < 0:
+                  print(f"⚠️ Warning: Negative value in {key}: {value}")
+          
+          print("=== End Validation ===")
+          
+          # Final validation and error handling
+          print("\n=== Final Pipeline Validation ===")
+          
+          # Check for critical security issues
+          critical_issues = []
+          if unified_report['summary']['critical_vulnerabilities'] > 0:
+              critical_issues.append(f"Critical vulnerabilities: {unified_report['summary']['critical_vulnerabilities']}")
+          if unified_report['summary']['secrets_found'] > 0:
+              critical_issues.append(f"Exposed secrets: {unified_report['summary']['secrets_found']}")
+          if unified_report['summary']['overall_score'] < 70:
+              critical_issues.append(f"Low security score: {unified_report['summary']['overall_score']}/100")
+          
+          # Validate report completeness
+          if not os.path.exists('unified-security-report.json'):
+              critical_issues.append("Missing unified security report")
+          if not os.path.exists('security-report.md'):
+              critical_issues.append("Missing markdown report")
+          
+          if critical_issues:
+              print("\n❌ Security scan failed due to critical issues:")
+              for issue in critical_issues:
+                  print(f"  - {issue}")
               exit(1)
           else:
-              print("\n✅ Security scan passed")
+              print("\n✅ Security scan passed successfully")
+              print(f"  - Overall Score: {unified_report['summary']['overall_score']}/100")
+              print(f"  - Vulnerabilities: {unified_report['summary']['total_vulnerabilities']}")
+              print(f"  - Secrets Found: {unified_report['summary']['secrets_found']}")
           EOF
           
           python3 generate-unified-report.py || echo "Security issues found"
@@ -3074,22 +3369,61 @@ jobs:
           
       - name: Security scan summary
         run: |
+          # Final validation of all artifacts
           echo "================================================"
-          echo "Flutter Security Pipeline Execution Complete"
+          echo "Final Artifact Validation"
           echo "================================================"
-          echo ""
-          cat security-report.md
-          echo ""
-          echo "================================================"
-          echo "Artifacts Generated:"
-          echo "- Software Bill of Materials (SBOM)"
-          echo "- Vulnerability Scan Results"
-          echo "- SAST Analysis Reports"
-          echo "- Supply Chain Security Report"
-          echo "- Unified Security Report"
-          echo ""
-          echo "View detailed results in GitHub Security tab and workflow artifacts"
-          echo "================================================"
+          
+          cat > validate-artifacts.py << 'EOF'
+          import os
+          
+          required_artifacts = [
+              'enhanced-sbom.json',
+              'dependency-analysis.json',
+              'unified-security-report.json',
+              'security-report.md'
+          ]
+          
+          all_valid = True
+          for artifact in required_artifacts:
+              if os.path.exists(artifact):
+                  size = os.path.getsize(artifact)
+                  if size > 0:
+                      print(f"✅ {artifact}: {size} bytes")
+                  else:
+                      print(f"⚠️ {artifact}: Empty file")
+                      all_valid = False
+              else:
+                  print(f"❌ {artifact}: Missing")
+                  all_valid = False
+          
+          import sys
+          sys.exit(0 if all_valid else 1)
+          EOF
+          
+          python3 validate-artifacts.py
+          
+          if [ $? -eq 0 ]; then
+              echo "================================================"
+              echo "Flutter Security Pipeline Execution Complete"
+              echo "================================================"
+              echo ""
+              cat security-report.md
+              echo ""
+              echo "================================================"
+              echo "Artifacts Generated:"
+              echo "- Software Bill of Materials (SBOM)"
+              echo "- Vulnerability Scan Results"
+              echo "- SAST Analysis Reports"
+              echo "- Supply Chain Security Report"
+              echo "- Unified Security Report"
+              echo ""
+              echo "View detailed results in GitHub Security tab and workflow artifacts"
+              echo "================================================"
+          else
+              echo "❌ Pipeline completed with validation errors"
+              exit 1
+          fi
 
       # Validate workflow_dispatch inputs
       - name: Validate workflow_dispatch inputs

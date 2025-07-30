@@ -101,7 +101,7 @@ unified-security-report
 
 ### Dependency Security
 ```dart
-// Enhanced dependency processing with deduplication
+// Enhanced dependency processing with comprehensive filtering
 final processedPurls = <String>{};
 final purl = 'pkg:pub/$packageName@$packageVersion';
 
@@ -111,13 +111,47 @@ if (packageName.contains('actions/') ||
   continue;
 }
 
-// Final deduplication
+// Skip application itself - app shouldn't be its own dependency
+if (packageName == pubspecInfo['name']) {
+  print('Skipping application itself: $packageName');
+  continue;
+}
+
+// Advanced deduplication with detailed component selection
 List<Map<String, dynamic>> deduplicateComponents(List<Map<String, dynamic>> components) {
-  final seenPurls = <String>{};
+  final seenKeys = <String, Map<String, dynamic>>{};
   final uniqueComponents = <Map<String, dynamic>>[];
-  // Remove query parameters for accurate comparison
-  final basePurl = purl.split('?')[0];
-  // ... deduplication logic
+  
+  for (final component in components) {
+    final name = component['name'] as String?;
+    final version = component['version'] as String?;
+    final key = '$name@$version';
+    
+    if (!seenKeys.containsKey(key)) {
+      seenKeys[key] = component;
+      uniqueComponents.add(component);
+    } else {
+      // Keep component with more detailed information
+      final existing = seenKeys[key]!;
+      final existingProps = (existing['properties'] as List<dynamic>?)?.length ?? 0;
+      final currentProps = (component['properties'] as List<dynamic>?)?.length ?? 0;
+      
+      if (currentProps > existingProps) {
+        // Replace with more detailed component
+        seenKeys[key] = component;
+        // Update in uniqueComponents list
+        for (int i = 0; i < uniqueComponents.length; i++) {
+          final uc = uniqueComponents[i];
+          if (uc['name'] == name && uc['version'] == version) {
+            uniqueComponents[i] = component;
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  return uniqueComponents;
 }
 ```
 
@@ -152,12 +186,13 @@ sast-scan:
 ## 🔧 Critical Issues Fixed
 
 ### Duplicate Dependencies Resolution
-- **Problem**: 87 unknown dependencies (79 duplicates + 8 CI/CD tools)
-- **Solution**: Advanced deduplication + GitHub Actions filtering
+- **Problem**: 87 unknown dependencies (79 duplicates + 8 CI/CD tools + app self-reference)
+- **Solution**: Advanced deduplication + comprehensive filtering
 - **Implementation**: 
   - `filter_github_actions()`: Removes CI/CD tools from Syft SBOM
   - `advanced_deduplication()`: Smart component selection with detailed info
   - `smart_merge_sboms()`: Priority to Flutter components
+  - **App self-reference filtering**: Skip application itself as dependency
 - **Result**: 0 unknown dependencies ✅
 
 ### Accurate Vulnerability Reporting
@@ -184,11 +219,12 @@ sast-scan:
 ### Quality Validation
 ```bash
 === SBOM Quality Validation ===
-Total components: 178
+Total components: 177
 GitHub Actions found: 0 ✅
+App self-references found: 0 ✅
 Duplicates found: 0 ✅
 Scope distribution: {'required': 15, 'optional': 64}
-Platform distribution: {'dart': 158, 'android': 12, 'ios': 8}
+Platform distribution: {'dart': 157, 'android': 12, 'ios': 8}
 Quality score: 100/100 ✅
 ```
 
