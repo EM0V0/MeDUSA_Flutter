@@ -142,6 +142,8 @@ jobs:
         run: |
           # Install Grype for database update
           wget -qO- https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh
+          # Add to PATH and update database
+          export PATH="$PWD/bin:$PATH"
           grype db update
           
       - name: Enhanced Cache Strategy
