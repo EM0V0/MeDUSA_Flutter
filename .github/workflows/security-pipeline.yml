@@ -184,14 +184,15 @@ jobs:
           # Generate Syft SBOM
           syft . --output cyclonedx-json=syft-sbom.json
           
-          # Generate Flutter-specific SBOM
-          cat > generate-flutter-sbom.dart << 'EOF'
+          # Generate enhanced Flutter-specific SBOM
+          cat > generate-enhanced-flutter-sbom.dart << 'EOF'
           import 'dart:io';
           import 'dart:convert';
+          import 'dart:convert' show utf8;
           
           void main() async {
             try {
-              // Run flutter pub deps command
+              // Run flutter pub deps command with detailed output
               final result = await Process.run('flutter', ['pub', 'deps', '--json']);
               if (result.exitCode != 0) {
                 print('Error running flutter pub deps: ${result.stderr}');
@@ -204,22 +205,10 @@ jobs:
               final pubspecFile = File('pubspec.yaml');
               final pubspecContent = await pubspecFile.readAsString();
               
-              // Extract name and version (simple parsing)
-              String appName = 'unknown';
-              String appVersion = '0.0.0';
-              String description = '';
+              // Enhanced parsing of pubspec.yaml
+              Map<String, dynamic> pubspecInfo = parsePubspecYaml(pubspecContent);
               
-              for (final line in pubspecContent.split('\n')) {
-                if (line.startsWith('name:')) {
-                  appName = line.split(':')[1].trim();
-                } else if (line.startsWith('version:')) {
-                  appVersion = line.split(':')[1].trim().split('+')[0]; // Remove build number
-                } else if (line.startsWith('description:')) {
-                  description = line.split(':')[1].trim();
-                }
-              }
-              
-              // Generate SBOM
+              // Generate enhanced SBOM
               final sbom = {
                 'bomFormat': 'CycloneDX',
                 'specVersion': '1.4',
@@ -229,71 +218,578 @@ jobs:
                   'timestamp': DateTime.now().toIso8601String(),
                   'tools': [{
                     'vendor': 'Flutter Security Scanner',
-                    'name': 'flutter-sbom-generator',
-                    'version': '1.0.0'
+                    'name': 'enhanced-flutter-sbom-generator',
+                    'version': '2.0.0'
                   }],
                   'component': {
                     'type': 'application',
-                    'bom-ref': appName,
-                    'name': appName,
-                    'version': appVersion,
-                    'description': description,
+                    'bom-ref': pubspecInfo['name'] ?? 'unknown',
+                    'name': pubspecInfo['name'] ?? 'unknown',
+                    'version': pubspecInfo['version'] ?? '0.0.0',
+                    'description': pubspecInfo['description'] ?? '',
+                    'licenses': pubspecInfo['license'] != null ? [{
+                      'license': {
+                        'id': pubspecInfo['license'],
+                        'name': pubspecInfo['license']
+                      }
+                    }] : [],
+                    'properties': [
+                      {
+                        'name': 'flutter:version',
+                        'value': await getFlutterVersion()
+                      },
+                      {
+                        'name': 'dart:version',
+                        'value': await getDartVersion()
+                      },
+                      {
+                        'name': 'build:platforms',
+                        'value': pubspecInfo['platforms']?.toString() ?? '{}'
+                      }
+                    ]
                   }
                 },
                 'components': []
               };
               
-              // Process dependencies
+              // Process dependencies with enhanced metadata
               final components = <Map<String, dynamic>>[];
+              final processedPackages = <String>{};
+              
               for (var package in depsData['packages']) {
-                if (package['name'] != appName) {
-                  components.add({
+                final packageName = package['name'];
+                final packageVersion = package['version'];
+                final packageKey = '$packageName@$packageVersion';
+                
+                // Avoid duplicates
+                if (processedPackages.contains(packageKey)) continue;
+                processedPackages.add(packageKey);
+                
+                if (packageName != pubspecInfo['name']) {
+                  final component = {
                     'type': 'library',
-                    'bom-ref': 'pkg:pub/${package['name']}@${package['version']}',
-                    'name': package['name'],
-                    'version': package['version'],
-                    'purl': 'pkg:pub/${package['name']}@${package['version']}',
+                    'bom-ref': 'pkg:pub/$packageName@$packageVersion',
+                    'name': packageName,
+                    'version': packageVersion,
+                    'purl': 'pkg:pub/$packageName@$packageVersion',
                     'scope': package['kind'] == 'direct' ? 'required' : 'optional',
-                  });
+                    'properties': [
+                      {
+                        'name': 'dependency:type',
+                        'value': package['kind'] ?? 'unknown'
+                      },
+                      {
+                        'name': 'dependency:source',
+                        'value': package['source'] ?? 'hosted'
+                      }
+                    ]
+                  };
+                  
+                  // Add license information if available
+                  if (package['license'] != null) {
+                    component['licenses'] = [{
+                      'license': {
+                        'id': package['license'],
+                        'name': package['license']
+                      }
+                    }];
+                  }
+                  
+                  // Add author information if available
+                  if (package['authors'] != null) {
+                    component['authors'] = package['authors'];
+                  }
+                  
+                  // Add description if available
+                  if (package['description'] != null) {
+                    component['description'] = package['description'];
+                  }
+                  
+                  components.add(component);
                 }
               }
+              
+              // Add native dependencies
+              await addNativeDependencies(components, processedPackages);
+              
+              // Add build dependencies
+              await addBuildDependencies(components, processedPackages, pubspecInfo);
+              
               sbom['components'] = components;
               
-              // Write SBOM
-              final sbomFile = File('flutter-sbom.json');
+              // Write enhanced SBOM
+              final sbomFile = File('enhanced-flutter-sbom.json');
               await sbomFile.writeAsString(
                 JsonEncoder.withIndent('  ').convert(sbom)
               );
-              print('Flutter SBOM generated successfully');
+              print('Enhanced Flutter SBOM generated successfully');
               print('Total components: ${components.length}');
+              print('Processed packages: ${processedPackages.length}');
             } catch (e, stack) {
-              print('Error generating Flutter SBOM: $e');
+              print('Error generating enhanced Flutter SBOM: $e');
               print('Stack trace: $stack');
               exit(1);
             }
           }
+          
+          // Enhanced YAML parsing
+          Map<String, dynamic> parsePubspecYaml(String content) {
+            final lines = content.split('\n');
+            final info = <String, dynamic>{};
+            String currentSection = '';
+            
+            for (final line in lines) {
+              final trimmedLine = line.trim();
+              if (trimmedLine.isEmpty) continue;
+              
+              if (trimmedLine.startsWith('name:')) {
+                info['name'] = trimmedLine.split(':')[1].trim();
+              } else if (trimmedLine.startsWith('version:')) {
+                info['version'] = trimmedLine.split(':')[1].trim().split('+')[0];
+              } else if (trimmedLine.startsWith('description:')) {
+                info['description'] = trimmedLine.split(':')[1].trim();
+              } else if (trimmedLine.startsWith('license:')) {
+                info['license'] = trimmedLine.split(':')[1].trim();
+              } else if (trimmedLine.startsWith('authors:')) {
+                info['authors'] = trimmedLine.split(':')[1].trim();
+              } else if (trimmedLine.startsWith('platforms:')) {
+                info['platforms'] = {};
+                currentSection = 'platforms';
+              } else if (currentSection == 'platforms' && trimmedLine.startsWith('  ')) {
+                final platformLine = trimmedLine.trim();
+                if (platformLine.contains(':')) {
+                  final parts = platformLine.split(':');
+                  info['platforms'][parts[0].trim()] = parts[1].trim();
+                }
+              } else if (trimmedLine.startsWith('dependencies:') || 
+                         trimmedLine.startsWith('dev_dependencies:')) {
+                currentSection = trimmedLine.startsWith('dependencies:') ? 'dependencies' : 'dev_dependencies';
+                info[currentSection] = {};
+              } else if ((currentSection == 'dependencies' || currentSection == 'dev_dependencies') && 
+                         trimmedLine.startsWith('  ')) {
+                final depLine = trimmedLine.trim();
+                if (depLine.contains(':')) {
+                  final parts = depLine.split(':');
+                  final depName = parts[0].trim();
+                  final depVersion = parts[1].trim();
+                  info[currentSection][depName] = depVersion;
+                }
+              }
+            }
+            
+            return info;
+          }
+          
+          // Get Flutter version
+          Future<String> getFlutterVersion() async {
+            try {
+              final result = await Process.run('flutter', ['--version']);
+              if (result.exitCode == 0) {
+                final lines = result.stdout.toString().split('\n');
+                for (final line in lines) {
+                  if (line.contains('Flutter')) {
+                    final match = RegExp(r'Flutter (\d+\.\d+\.\d+)').firstMatch(line);
+                    if (match != null) {
+                      return match.group(1)!;
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              print('Error getting Flutter version: $e');
+            }
+            return 'unknown';
+          }
+          
+          // Get Dart version
+          Future<String> getDartVersion() async {
+            try {
+              final result = await Process.run('dart', ['--version']);
+              if (result.exitCode == 0) {
+                final lines = result.stdout.toString().split('\n');
+                for (final line in lines) {
+                  if (line.contains('Dart VM version')) {
+                    final match = RegExp(r'Dart VM version: (\d+\.\d+\.\d+)').firstMatch(line);
+                    if (match != null) {
+                      return match.group(1)!;
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              print('Error getting Dart version: $e');
+            }
+            return 'unknown';
+          }
+          
+          // Add native dependencies
+          Future<void> addNativeDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages) async {
+            // Check for Android native dependencies
+            final androidDir = Directory('android');
+            if (await androidDir.exists()) {
+              final gradleFile = File('android/app/build.gradle');
+              if (await gradleFile.exists()) {
+                final content = await gradleFile.readAsString();
+                final dependencies = RegExp(r'implementation\s+[\'"]([^\'"]+)[\'"]').allMatches(content);
+                
+                for (final match in dependencies) {
+                  final dep = match.group(1)!;
+                  final parts = dep.split(':');
+                  if (parts.length >= 2) {
+                    final group = parts[0];
+                    final name = parts[1];
+                    final version = parts.length > 2 ? parts[2] : 'unknown';
+                    final packageKey = '$group:$name@$version';
+                    
+                    if (!processedPackages.contains(packageKey)) {
+                      processedPackages.add(packageKey);
+                      components.add({
+                        'type': 'library',
+                        'bom-ref': 'pkg:maven/$group/$name@$version',
+                        'name': name,
+                        'version': version,
+                        'purl': 'pkg:maven/$group/$name@$version',
+                        'scope': 'required',
+                        'properties': [
+                          {
+                            'name': 'platform',
+                            'value': 'android'
+                          },
+                          {
+                            'name': 'group',
+                            'value': group
+                          }
+                        ]
+                      });
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Check for iOS native dependencies
+            final iosDir = Directory('ios');
+            if (await iosDir.exists()) {
+              final podfile = File('ios/Podfile');
+              if (await podfile.exists()) {
+                final content = await podfile.readAsString();
+                final dependencies = RegExp(r'pod\s+[\'"]([^\'"]+)[\'"](?:\s*,\s*[\'"]([^\'"]+)[\'"])?').allMatches(content);
+                
+                for (final match in dependencies) {
+                  final name = match.group(1)!;
+                  final version = match.group(2) ?? 'unknown';
+                  final packageKey = '$name@$version';
+                  
+                  if (!processedPackages.contains(packageKey)) {
+                    processedPackages.add(packageKey);
+                    components.add({
+                      'type': 'library',
+                      'bom-ref': 'pkg:cocoapods/$name@$version',
+                      'name': name,
+                      'version': version,
+                      'purl': 'pkg:cocoapods/$name@$version',
+                      'scope': 'required',
+                      'properties': [
+                        {
+                          'name': 'platform',
+                          'value': 'ios'
+                        }
+                      ]
+                    });
+                  }
+                }
+              }
+            }
+          }
+          
+          // Add build dependencies
+          Future<void> addBuildDependencies(List<Map<String, dynamic>> components, Set<String> processedPackages, Map<String, dynamic> pubspecInfo) async {
+            if (pubspecInfo['dev_dependencies'] != null) {
+              for (final entry in pubspecInfo['dev_dependencies'].entries) {
+                final name = entry.key;
+                final version = entry.value;
+                final packageKey = '$name@$version';
+                
+                if (!processedPackages.contains(packageKey)) {
+                  processedPackages.add(packageKey);
+                  components.add({
+                    'type': 'library',
+                    'bom-ref': 'pkg:pub/$name@$version',
+                    'name': name,
+                    'version': version,
+                    'purl': 'pkg:pub/$name@$version',
+                    'scope': 'optional',
+                    'properties': [
+                      {
+                        'name': 'dependency:type',
+                        'value': 'dev_dependency'
+                      },
+                      {
+                        'name': 'build:tool',
+                        'value': 'true'
+                      }
+                    ]
+                  });
+                }
+              }
+            }
+          }
           EOF
           
-          dart run generate-flutter-sbom.dart
+          dart run generate-enhanced-flutter-sbom.dart
           
-          # Merge SBOMs
-          jq -s '.[0] * {components: (.[0].components + .[1].components)}' \
-            syft-sbom.json flutter-sbom.json > sbom.json
-            
+          # Enhanced SBOM merging with deduplication
+          cat > merge-enhanced-sboms.py << 'EOF'
+          import json
+          import sys
+          from datetime import datetime
+          
+          def merge_sboms(syft_file, flutter_file, output_file):
+              # Load SBOMs
+              with open(syft_file, 'r') as f:
+                  syft_sbom = json.load(f)
+              
+              with open(flutter_file, 'r') as f:
+                  flutter_sbom = json.load(f)
+              
+              # Create merged SBOM
+              merged_sbom = {
+                  'bomFormat': 'CycloneDX',
+                  'specVersion': '1.4',
+                  'serialNumber': f'urn:uuid:{int(datetime.now().timestamp() * 1000)}',
+                  'version': 1,
+                  'metadata': {
+                      'timestamp': datetime.now().isoformat(),
+                      'tools': [
+                          {
+                              'vendor': 'Anchore',
+                              'name': 'syft',
+                              'version': '1.29.0'
+                          },
+                          {
+                              'vendor': 'Flutter Security Scanner',
+                              'name': 'enhanced-flutter-sbom-generator',
+                              'version': '2.0.0'
+                          }
+                      ],
+                      'component': flutter_sbom['metadata']['component']
+                  },
+                  'components': []
+              }
+              
+              # Track processed components to avoid duplicates
+              processed_components = set()
+              merged_components = []
+              
+              # Process Flutter components first (more accurate for Dart ecosystem)
+              for component in flutter_sbom.get('components', []):
+                  purl = component.get('purl', '')
+                  if purl and purl not in processed_components:
+                      processed_components.add(purl)
+                      merged_components.append(component)
+              
+              # Add Syft components that aren't already covered
+              for component in syft_sbom.get('components', []):
+                  purl = component.get('purl', '')
+                  if purl and purl not in processed_components:
+                      processed_components.add(purl)
+                      merged_components.append(component)
+              
+              merged_sbom['components'] = merged_components
+              
+              # Write merged SBOM
+              with open(output_file, 'w') as f:
+                  json.dump(merged_sbom, f, indent=2)
+              
+              print(f'Successfully merged SBOMs')
+              print(f'Total components: {len(merged_components)}')
+              print(f'Flutter components: {len(flutter_sbom.get("components", []))}')
+              print(f'Syft components: {len(syft_sbom.get("components", []))}')
+              print(f'Unique components: {len(processed_components)}')
+          
+          if __name__ == '__main__':
+              merge_sboms('syft-sbom.json', 'enhanced-flutter-sbom.json', 'enhanced-sbom.json')
+          EOF
+          
+          python3 merge-enhanced-sboms.py
+          
+          # Generate comprehensive dependency analysis
+          cat > generate-dependency-analysis.py << 'EOF'
+          import json
+          import subprocess
+          import sys
+          
+          def analyze_dependencies():
+              # Load enhanced SBOM
+              with open('enhanced-sbom.json', 'r') as f:
+                  sbom = json.load(f)
+              
+              analysis = {
+                  'timestamp': datetime.now().isoformat(),
+                  'summary': {
+                      'total_components': len(sbom.get('components', [])),
+                      'by_type': {},
+                      'by_scope': {},
+                      'by_platform': {},
+                      'by_source': {}
+                  },
+                  'components': []
+              }
+              
+              for component in sbom.get('components', []):
+                  comp_type = component.get('type', 'unknown')
+                  comp_scope = component.get('scope', 'unknown')
+                  comp_purl = component.get('purl', '')
+                  
+                  # Count by type
+                  analysis['summary']['by_type'][comp_type] = analysis['summary']['by_type'].get(comp_type, 0) + 1
+                  
+                  # Count by scope
+                  analysis['summary']['by_scope'][comp_scope] = analysis['summary']['by_scope'].get(comp_scope, 0) + 1
+                  
+                  # Determine platform
+                  platform = 'unknown'
+                  if 'pkg:pub/' in comp_purl:
+                      platform = 'dart'
+                  elif 'pkg:maven/' in comp_purl:
+                      platform = 'android'
+                  elif 'pkg:cocoapods/' in comp_purl:
+                      platform = 'ios'
+                  elif 'pkg:npm/' in comp_purl:
+                      platform = 'javascript'
+                  elif 'pkg:pypi/' in comp_purl:
+                      platform = 'python'
+                  
+                  analysis['summary']['by_platform'][platform] = analysis['summary']['by_platform'].get(platform, 0) + 1
+                  
+                  # Determine source
+                  source = 'unknown'
+                  if 'pkg:pub/' in comp_purl:
+                      source = 'pub.dev'
+                  elif 'pkg:maven/' in comp_purl:
+                      source = 'maven'
+                  elif 'pkg:cocoapods/' in comp_purl:
+                      source = 'cocoapods'
+                  elif 'pkg:git/' in comp_purl:
+                      source = 'git'
+                  
+                  analysis['summary']['by_source'][source] = analysis['summary']['by_source'].get(source, 0) + 1
+                  
+                  # Add component details
+                  analysis['components'].append({
+                      'name': component.get('name'),
+                      'version': component.get('version'),
+                      'type': comp_type,
+                      'scope': comp_scope,
+                      'platform': platform,
+                      'source': source,
+                      'purl': comp_purl
+                  })
+              
+              # Write analysis
+              with open('dependency-analysis.json', 'w') as f:
+                  json.dump(analysis, f, indent=2)
+              
+              print('Dependency analysis completed')
+              print(f'Total components: {analysis["summary"]["total_components"]}')
+              print('By type:', analysis['summary']['by_type'])
+              print('By scope:', analysis['summary']['by_scope'])
+              print('By platform:', analysis['summary']['by_platform'])
+              print('By source:', analysis['summary']['by_source'])
+          
+          if __name__ == '__main__':
+              analyze_dependencies()
+          EOF
+          
+          python3 generate-dependency-analysis.py
+          
           # Generate dependency tree
           flutter pub deps --style=tree > dependency-tree.txt
           
           # Generate outdated report
           flutter pub outdated --json > outdated.json || echo '{}' > outdated.json
           
+          # Generate SBOM validation report
+          cat > validate-sbom.py << 'EOF'
+          import json
+          import sys
+          
+          def validate_sbom():
+              try:
+                  with open('enhanced-sbom.json', 'r') as f:
+                      sbom = json.load(f)
+                  
+                  validation = {
+                      'valid': True,
+                      'errors': [],
+                      'warnings': [],
+                      'coverage': {
+                          'total_components': len(sbom.get('components', [])),
+                          'with_license': 0,
+                          'with_description': 0,
+                          'with_purl': 0,
+                          'with_hash': 0
+                      }
+                  }
+                  
+                  for component in sbom.get('components', []):
+                      if component.get('licenses'):
+                          validation['coverage']['with_license'] += 1
+                      if component.get('description'):
+                          validation['coverage']['with_description'] += 1
+                      if component.get('purl'):
+                          validation['coverage']['with_purl'] += 1
+                      if component.get('hashes'):
+                          validation['coverage']['with_hash'] += 1
+                  
+                  # Calculate coverage percentages
+                  total = validation['coverage']['total_components']
+                  if total > 0:
+                      validation['coverage']['license_coverage'] = validation['coverage']['with_license'] / total * 100
+                      validation['coverage']['description_coverage'] = validation['coverage']['with_description'] / total * 100
+                      validation['coverage']['purl_coverage'] = validation['coverage']['with_purl'] / total * 100
+                      validation['coverage']['hash_coverage'] = validation['coverage']['with_hash'] / total * 100
+                  
+                  # Check for required fields
+                  if not sbom.get('metadata', {}).get('component', {}).get('name'):
+                      validation['errors'].append('Missing root component name')
+                      validation['valid'] = False
+                  
+                  if not sbom.get('components'):
+                      validation['warnings'].append('No components found in SBOM')
+                  
+                  with open('sbom-validation.json', 'w') as f:
+                      json.dump(validation, f, indent=2)
+                  
+                  print('SBOM validation completed')
+                  print(f'Valid: {validation["valid"]}')
+                  print(f'Errors: {len(validation["errors"])}')
+                  print(f'Warnings: {len(validation["warnings"])}')
+                  print(f'Coverage: {validation["coverage"]}')
+                  
+                  return validation['valid']
+                  
+              except Exception as e:
+                  print(f'SBOM validation failed: {e}')
+                  return False
+          
+          if __name__ == '__main__':
+              success = validate_sbom()
+              sys.exit(0 if success else 1)
+          EOF
+          
+          python3 validate-sbom.py
+          
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: software-bill-of-materials
           path: |
-            sbom.json
+            enhanced-sbom.json
             syft-sbom.json
-            flutter-sbom.json
+            enhanced-flutter-sbom.json
+            dependency-analysis.json
+            sbom-validation.json
             dependency-tree.txt
             outdated.json
           retention-days: 90
@@ -317,8 +813,8 @@ jobs:
           # Install tools
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
           
-          # Grype scan
-          grype sbom:sbom.json --output sarif --file grype-results.sarif || {
+          # Grype scan with enhanced SBOM
+          grype sbom:enhanced-sbom.json --output sarif --file grype-results.sarif || {
             EXIT_CODE=$?
             echo "Grype scan completed with exit code: $EXIT_CODE"
             if [ ! -f "grype-results.sarif" ]; then
@@ -326,16 +822,145 @@ jobs:
             fi
           }
           
-          # OSV Scanner
+          # OSV Scanner with enhanced SBOM
           wget -q https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
           chmod +x osv-scanner_linux_amd64
-          ./osv-scanner_linux_amd64 --sbom=sbom.json --format=json > osv-results.json || {
+          ./osv-scanner_linux_amd64 --sbom=enhanced-sbom.json --format=json > osv-results.json || {
             EXIT_CODE=$?
             echo "OSV Scanner completed with exit code: $EXIT_CODE"
             if [ ! -f "osv-results.json" ] || [ ! -s "osv-results.json" ]; then
               echo '{"results": []}' > osv-results.json
             fi
           }
+          
+          # Generate enhanced vulnerability report
+          cat > generate-enhanced-vulnerability-report.py << 'EOF'
+          import json
+          import sys
+          from datetime import datetime
+          
+          def generate_enhanced_vulnerability_report():
+              try:
+                  # Load SBOM and analysis
+                  with open('enhanced-sbom.json', 'r') as f:
+                      sbom = json.load(f)
+                  
+                  with open('dependency-analysis.json', 'r') as f:
+                      analysis = json.load(f)
+                  
+                  # Load vulnerability results
+                  grype_results = {}
+                  osv_results = {}
+                  
+                  try:
+                      with open('grype-results.sarif', 'r') as f:
+                          grype_results = json.load(f)
+                  except:
+                      grype_results = {'runs': []}
+                  
+                  try:
+                      with open('osv-results.json', 'r') as f:
+                          osv_results = json.load(f)
+                  except:
+                      osv_results = {'results': []}
+                  
+                  # Generate comprehensive vulnerability report
+                  report = {
+                      'timestamp': datetime.now().isoformat(),
+                      'sbom_summary': {
+                          'total_components': len(sbom.get('components', [])),
+                          'by_platform': analysis['summary']['by_platform'],
+                          'by_source': analysis['summary']['by_source']
+                      },
+                      'vulnerability_summary': {
+                          'grype_findings': 0,
+                          'osv_findings': 0,
+                          'total_vulnerabilities': 0,
+                          'by_severity': {
+                              'critical': 0,
+                              'high': 0,
+                              'medium': 0,
+                              'low': 0
+                          }
+                      },
+                      'coverage_analysis': {
+                          'dart_packages': analysis['summary']['by_platform'].get('dart', 0),
+                          'android_dependencies': analysis['summary']['by_platform'].get('android', 0),
+                          'ios_dependencies': analysis['summary']['by_platform'].get('ios', 0),
+                          'build_tools': analysis['summary']['by_platform'].get('unknown', 0)
+                      },
+                      'recommendations': []
+                  }
+                  
+                  # Count Grype findings
+                  for run in grype_results.get('runs', []):
+                      for result in run.get('results', []):
+                          report['vulnerability_summary']['grype_findings'] += 1
+                          report['vulnerability_summary']['total_vulnerabilities'] += 1
+                          
+                          # Count by severity
+                          severity = result.get('level', 'medium').lower()
+                          if severity in report['vulnerability_summary']['by_severity']:
+                              report['vulnerability_summary']['by_severity'][severity] += 1
+                  
+                  # Count OSV findings
+                  for result in osv_results.get('results', []):
+                      report['vulnerability_summary']['osv_findings'] += 1
+                      report['vulnerability_summary']['total_vulnerabilities'] += 1
+                      
+                      # Count by severity
+                      severity = result.get('vulnerability', {}).get('severity', 'medium').lower()
+                      if severity in report['vulnerability_summary']['by_severity']:
+                          report['vulnerability_summary']['by_severity'][severity] += 1
+                  
+                  # Generate recommendations
+                  if report['vulnerability_summary']['by_severity']['critical'] > 0:
+                      report['recommendations'].append({
+                          'priority': 'CRITICAL',
+                          'message': f"Fix {report['vulnerability_summary']['by_severity']['critical']} critical vulnerabilities immediately"
+                      })
+                  
+                  if report['vulnerability_summary']['by_severity']['high'] > 0:
+                      report['recommendations'].append({
+                          'priority': 'HIGH',
+                          'message': f"Address {report['vulnerability_summary']['by_severity']['high']} high severity vulnerabilities"
+                      })
+                  
+                  # Coverage recommendations
+                  coverage = report['coverage_analysis']
+                  if coverage['android_dependencies'] > 0:
+                      report['recommendations'].append({
+                          'priority': 'MEDIUM',
+                          'message': f"Review {coverage['android_dependencies']} Android native dependencies for security"
+                      })
+                  
+                  if coverage['ios_dependencies'] > 0:
+                      report['recommendations'].append({
+                          'priority': 'MEDIUM',
+                          'message': f"Review {coverage['ios_dependencies']} iOS native dependencies for security"
+                      })
+                  
+                  # Write enhanced report
+                  with open('enhanced-vulnerability-report.json', 'w') as f:
+                      json.dump(report, f, indent=2)
+                  
+                  print('Enhanced vulnerability report generated')
+                  print(f'Total components scanned: {report["sbom_summary"]["total_components"]}')
+                  print(f'Total vulnerabilities found: {report["vulnerability_summary"]["total_vulnerabilities"]}')
+                  print(f'Coverage: {report["coverage_analysis"]}')
+                  
+                  return True
+                  
+              except Exception as e:
+                  print(f'Error generating enhanced vulnerability report: {e}')
+                  return False
+          
+          if __name__ == '__main__':
+              success = generate_enhanced_vulnerability_report()
+              sys.exit(0 if success else 1)
+          EOF
+          
+          python3 generate-enhanced-vulnerability-report.py
           
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
@@ -354,6 +979,7 @@ jobs:
             grype-results.sarif
             trivy-results.sarif
             osv-results.json
+            enhanced-vulnerability-report.json
           retention-days: 30
 
   # Static Application Security Testing (SAST)
@@ -1137,4 +1763,4 @@ jobs:
           echo "- Unified Security Report"
           echo ""
           echo "View detailed results in GitHub Security tab and workflow artifacts"
-          echo "================================================"
+          echo "================================================
