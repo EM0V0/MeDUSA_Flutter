@@ -1137,7 +1137,7 @@ jobs:
             return null;
           }
           EOF
-          
+
           dart run generate-enhanced-flutter-sbom.dart
           
           # Enhanced SBOM merging with deduplication
