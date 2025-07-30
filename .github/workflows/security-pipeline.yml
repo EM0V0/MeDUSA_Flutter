@@ -11,9 +11,6 @@ on:
       - 'pubspec.lock'
       - '.github/workflows/**'
       - 'scripts/**'  # Add scripts directory
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
       
   pull_request:
     branches: [main]
