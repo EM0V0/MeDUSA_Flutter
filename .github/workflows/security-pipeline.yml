@@ -1152,7 +1152,7 @@ jobs:
               for (var package in depsData['packages']) {
                 final packageName = package['name'];
                 final packageVersion = package['version'];
-                                 final packageKey = packageName + '@' + packageVersion;
+                final packageKey = packageName + '@' + packageVersion;
                 if (processedPackages.contains(packageKey)) continue;
                 if (packageName.contains('actions/') || 
                     packageName.contains('github/') ||
@@ -1169,7 +1169,7 @@ jobs:
                   continue;
                 }
                 processedPackages.add(packageKey);
-                                 final purl = 'pkg:pub/' + packageName + '@' + packageVersion;
+                final purl = 'pkg:pub/' + packageName + '@' + packageVersion;
                 if (processedPurls.contains(purl)) continue;
                 processedPurls.add(purl);
                 
@@ -1237,7 +1237,7 @@ jobs:
               final sbom = {
                 'bomFormat': 'CycloneDX',
                 'specVersion': '1.4',
-                                 'serialNumber': 'urn:uuid:' + DateTime.now().millisecondsSinceEpoch.toString(),
+                'serialNumber': 'urn:uuid:' + DateTime.now().millisecondsSinceEpoch.toString(),
                 'version': 1,
                 'metadata': {
                   'timestamp': DateTime.now().toIso8601String(),
@@ -1337,10 +1337,10 @@ jobs:
           # Validate SBOM format
           if [ -f "enhanced-sbom.json" ]; then
             echo "Validating SBOM format..."
-            python3 -c "import json; sbom=json.load(open('enhanced-sbom.json')); print(f'✅ SBOM valid with {len(sbom.get(\"components\", []))} components')"
+            python3 -c "import json; sbom=json.load(open('enhanced-sbom.json')); print('✅ SBOM valid with ' + str(len(sbom.get('components', []))) + ' components')"
           else
             echo "❌ Enhanced SBOM not found"
-            exit(1)
+            exit 1
           fi
           
           # Enhanced SBOM merging with deduplication
