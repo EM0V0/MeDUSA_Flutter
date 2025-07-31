@@ -2343,8 +2343,7 @@ jobs:
           # Create default dependency analysis if not exists
           if [ ! -f "dependency-analysis.json" ]; then
             echo "Creating default dependency analysis..."
-            cat > dependency-analysis.json << EOF
-            {
+            echo '{
               "summary": {
                 "total_components": 0,
                 "by_platform": {"dart": 0, "android": 0, "ios": 0, "unknown": 0},
@@ -2364,8 +2363,7 @@ jobs:
                 "unmaintained_dependencies": [],
                 "license_violations": []
               }
-            }
-            EOF
+            }' > dependency-analysis.json
           fi
           
       - name: Vulnerability scanning suite
