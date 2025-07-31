@@ -188,11 +188,6 @@ strategy:
 ### Duplicate Dependencies Resolution
 - **Problem**: 87 unknown dependencies (79 duplicates + 8 CI/CD tools + app self-reference)
 - **Solution**: Advanced deduplication + comprehensive filtering
-- **Implementation**: 
-  - `filter_github_actions()`: Removes CI/CD tools from Syft SBOM
-  - `advanced_deduplication()`: Smart component selection with detailed info
-  - `smart_merge_sboms()`: Priority to Flutter components
-  - **App self-reference filtering**: Skip application itself as dependency
 - **Result**: 0 unknown dependencies ✅
 
 ### Accurate Vulnerability Reporting
