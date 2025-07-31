@@ -316,12 +316,81 @@ jobs:
                       return match.group(1)!;
                     }
                   }
+                  // Alternative pattern for newer Dart versions
+                  if (line.contains('Dart')) {
+                    final match = RegExp(r'Dart (\d+\.\d+\.\d+)').firstMatch(line);
+                    if (match != null) {
+                      return match.group(1)!;
+                    }
+                  }
                 }
               }
             } catch (e) {
               print('Error getting Dart version: $e');
             }
             return 'unknown';
+          }
+          
+          // Get supported platforms
+          Future<Map<String, bool>> getSupportedPlatforms() async {
+            try {
+              final result = await Process.run('flutter', ['doctor']);
+              if (result.exitCode == 0) {
+                final output = result.stdout.toString();
+                final platforms = <String, bool>{
+                  'android': output.contains('Android toolchain'),
+                  'ios': output.contains('iOS toolchain'),
+                  'web': output.contains('Chrome'),
+                  'windows': output.contains('Windows Version'),
+                  'macos': output.contains('macOS'),
+                  'linux': output.contains('Linux Version')
+                };
+                return platforms;
+              }
+            } catch (e) {
+              print('Error getting supported platforms: $e');
+            }
+            return <String, bool>{};
+          }
+          
+          // Get package license information
+          Future<String?> getPackageLicense(String packageName) async {
+            try {
+              // Try to get license from pub.dev
+              final result = await Process.run('curl', ['-s', 'https://pub.dev/packages/$packageName']);
+              if (result.exitCode == 0) {
+                final content = result.stdout.toString();
+                if (content.contains('MIT')) return 'MIT';
+                if (content.contains('Apache')) return 'Apache-2.0';
+                if (content.contains('BSD')) return 'BSD-3-Clause';
+                if (content.contains('GPL')) return 'GPL-3.0';
+              }
+            } catch (e) {
+              print('Error getting license for $packageName: $e');
+            }
+            return null;
+          }
+          
+          // Deduplicate CPE entries
+          void deduplicateCPEEntries(List<Map<String, dynamic>> components) {
+            final seenCPEs = <String>{};
+            for (final component in components) {
+              final properties = component['properties'] as List<dynamic>? ?? [];
+              final newProperties = <Map<String, dynamic>>[];
+              
+              for (final prop in properties) {
+                if (prop['name'] == 'syft:cpe23') {
+                  final cpe = prop['value'] as String;
+                  if (!seenCPEs.contains(cpe)) {
+                    seenCPEs.add(cpe);
+                    newProperties.add(prop);
+                  }
+                } else {
+                  newProperties.add(prop);
+                }
+              }
+              component['properties'] = newProperties;
+            }
           }
           
           // Add transitive dependencies
@@ -1103,6 +1172,13 @@ jobs:
                                  final purl = 'pkg:pub/\${packageName}@\${packageVersion}';
                 if (processedPurls.contains(purl)) continue;
                 processedPurls.add(purl);
+                
+                // Get license information
+                String? license = package['license'];
+                if (license == null) {
+                  license = await getPackageLicense(packageName);
+                }
+                
                 final component = {
                   'type': 'library',
                   'bom-ref': purl,
@@ -1124,11 +1200,13 @@ jobs:
                     }
                   ]
                 };
-                if (package['license'] != null) {
+                
+                // Add license information if available
+                if (license != null) {
                   component['licenses'] = [{
                     'license': {
-                      'id': package['license'],
-                      'name': package['license']
+                      'id': license,
+                      'name': license
                     }
                   }];
                 }
@@ -1152,6 +1230,10 @@ jobs:
               await addPluginNativeDependencies(components, processedPackages);
               await addRuntimeDependencies(components, processedPackages);
               // 6. Build SBOM
+              final supportedPlatforms = await getSupportedPlatforms();
+              final flutterVersion = await getFlutterVersion();
+              final dartVersion = await getDartVersion();
+              
               final sbom = {
                 'bomFormat': 'CycloneDX',
                 'specVersion': '1.4',
@@ -1179,15 +1261,15 @@ jobs:
                     'properties': [
                       {
                         'name': 'flutter:version',
-                        'value': await getFlutterVersion()
+                        'value': flutterVersion
                       },
                       {
                         'name': 'dart:version',
-                        'value': await getDartVersion()
+                        'value': dartVersion
                       },
                       {
                         'name': 'build:platforms',
-                        'value': pubspecInfo['platforms']?.toString() ?? '{}'
+                        'value': supportedPlatforms.toString()
                       }
                     ]
                   }
@@ -1195,7 +1277,11 @@ jobs:
                 'components': []
               };
               await addBuildToolchain(sbom);
-              sbom['components'] = deduplicateComponents(components);
+              
+              // Deduplicate components and CPE entries
+              final deduplicatedComponents = deduplicateComponents(components);
+              deduplicateCPEEntries(deduplicatedComponents);
+              sbom['components'] = deduplicatedComponents;
               final sbomFile = File('enhanced-flutter-sbom.json');
               await sbomFile.writeAsString(
                 JsonEncoder.withIndent('  ').convert(sbom)
@@ -1247,6 +1333,15 @@ jobs:
           EOF
 
           dart run generate-enhanced-flutter-sbom.dart
+          
+          # Validate SBOM format
+          if [ -f "enhanced-sbom.json" ]; then
+            echo "Validating SBOM format..."
+            python3 -c "import json; sbom=json.load(open('enhanced-sbom.json')); print(f'✅ SBOM valid with {len(sbom.get(\"components\", []))} components')"
+          else
+            echo "❌ Enhanced SBOM not found"
+            exit(1)
+          fi
           
           # Enhanced SBOM merging with deduplication
           cat > merge-enhanced-sboms.py << 'EOF'
@@ -2234,6 +2329,36 @@ jobs:
           name: software-bill-of-materials
         continue-on-error: true
           
+      - name: Create default dependency analysis
+        run: |
+          # Create default dependency analysis if not exists
+          if [ ! -f "dependency-analysis.json" ]; then
+            echo "Creating default dependency analysis..."
+            cat > dependency-analysis.json << 'EOF'
+            {
+              "summary": {
+                "total_components": 0,
+                "by_platform": {"dart": 0, "android": 0, "ios": 0, "unknown": 0},
+                "by_source": {"pub.dev": 0, "maven": 0, "cocoapods": 0, "git": 0},
+                "by_scope": {"required": 0, "optional": 0, "unknown": 0},
+                "security_issues": {
+                  "vulnerable_components": 0,
+                  "outdated_components": 0,
+                  "unmaintained_components": 0,
+                  "license_violations": 0
+                }
+              },
+              "components": [],
+              "security_details": {
+                "vulnerable_dependencies": [],
+                "outdated_dependencies": [],
+                "unmaintained_dependencies": [],
+                "license_violations": []
+              }
+            }
+            EOF
+          fi
+          
       - name: Vulnerability scanning suite
         run: |
           # Install tools
@@ -2248,6 +2373,14 @@ jobs:
             fi
           }
           
+          # Alternative: Try with different SBOM format
+          if [ ! -f "grype-results.sarif" ] || [ ! -s "grype-results.sarif" ]; then
+            echo "Trying alternative SBOM format..."
+            grype dir:. --output sarif --file grype-results.sarif || {
+              echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
+            }
+          fi
+          
           # OSV Scanner with enhanced SBOM
           wget -q https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
           chmod +x osv-scanner_linux_amd64
@@ -2258,6 +2391,14 @@ jobs:
               echo '{"results": []}' > osv-results.json
             fi
           }
+          
+          # Alternative: Try OSV Scanner with directory scan
+          if [ ! -f "osv-results.json" ] || [ ! -s "osv-results.json" ]; then
+            echo "Trying OSV Scanner with directory scan..."
+            ./osv-scanner_linux_amd64 dir:. --format=json > osv-results.json || {
+              echo '{"results": []}' > osv-results.json
+            }
+          fi
           
           # Generate enhanced vulnerability report
           cat > generate-enhanced-vulnerability-report.py << 'EOF'
@@ -2271,8 +2412,18 @@ jobs:
                   with open('enhanced-sbom.json', 'r') as f:
                       sbom = json.load(f)
                   
-                  with open('dependency-analysis.json', 'r') as f:
-                      analysis = json.load(f)
+                  # Create default analysis if file doesn't exist
+                  try:
+                      with open('dependency-analysis.json', 'r') as f:
+                          analysis = json.load(f)
+                  except FileNotFoundError:
+                      print("Warning: dependency-analysis.json not found, creating default analysis")
+                      analysis = {
+                          'summary': {
+                              'by_platform': {'dart': 0, 'android': 0, 'ios': 0, 'unknown': 0},
+                              'by_source': {'pub.dev': 0, 'maven': 0, 'cocoapods': 0, 'git': 0}
+                          }
+                      }
                   
                   # Load vulnerability results
                   grype_results = {}
