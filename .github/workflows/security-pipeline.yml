@@ -219,7 +219,7 @@ jobs:
           syft . --output cyclonedx-json=syft-sbom.json
           
           # Generate enhanced Flutter-specific SBOM
-          cat > generate-enhanced-flutter-sbom.dart << 'EOF'
+          cat > generate-enhanced-flutter-sbom.dart << EOF
           import 'dart:io';
           import 'dart:convert';
           import 'dart:convert' show utf8;
@@ -1119,7 +1119,7 @@ jobs:
               }
             }
             
-            print('Advanced deduplication: \${components.length} -> \${uniqueComponents.length} components');
+            print('Advanced deduplication: ' + components.length.toString() + ' -> ' + uniqueComponents.length.toString() + ' components');
             return uniqueComponents;
           }
           
@@ -1139,7 +1139,7 @@ jobs:
               // 3. Run flutter pub deps
               final result = await Process.run('flutter', ['pub', 'deps', '--json']);
               if (result.exitCode != 0) {
-                print('Error running flutter pub deps: \${result.stderr}');
+                print('Error running flutter pub deps: ' + result.stderr);
                 exit(1);
               }
               if (result.stdout.toString().trim().isEmpty) {
@@ -1152,7 +1152,7 @@ jobs:
               for (var package in depsData['packages']) {
                 final packageName = package['name'];
                 final packageVersion = package['version'];
-                                 final packageKey = '\${packageName}@\${packageVersion}';
+                                 final packageKey = packageName + '@' + packageVersion;
                 if (processedPackages.contains(packageKey)) continue;
                 if (packageName.contains('actions/') || 
                     packageName.contains('github/') ||
@@ -1165,11 +1165,11 @@ jobs:
                     packageName == pubspecInfo['name']?.toLowerCase() ||
                     packageName.contains(pubspecInfo['name'] ?? '') ||
                     packageName == 'medusa_app') {  // Add specific application name
-                  print('Skipping application itself: \${packageName}');
+                  print('Skipping application itself: ' + packageName);
                   continue;
                 }
                 processedPackages.add(packageKey);
-                                 final purl = 'pkg:pub/\${packageName}@\${packageVersion}';
+                                 final purl = 'pkg:pub/' + packageName + '@' + packageVersion;
                 if (processedPurls.contains(purl)) continue;
                 processedPurls.add(purl);
                 
@@ -1237,7 +1237,7 @@ jobs:
               final sbom = {
                 'bomFormat': 'CycloneDX',
                 'specVersion': '1.4',
-                                 'serialNumber': 'urn:uuid:\${DateTime.now().millisecondsSinceEpoch}',
+                                 'serialNumber': 'urn:uuid:' + DateTime.now().millisecondsSinceEpoch.toString(),
                 'version': 1,
                 'metadata': {
                   'timestamp': DateTime.now().toIso8601String(),
@@ -1287,10 +1287,10 @@ jobs:
                 JsonEncoder.withIndent('  ').convert(sbom)
               );
               print('Enhanced Flutter SBOM generated successfully');
-                             print('Total components: \${components.length}');
-               print('Processed packages: \${processedPackages.length}');
+                             print('Total components: ' + components.length.toString());
+               print('Processed packages: ' + processedPackages.length.toString());
                final uniqueCount = deduplicateComponents(components).length;
-               print('Unique components after deduplication: \${uniqueCount}');
+               print('Unique components after deduplication: ' + uniqueCount.toString());
               if (components.length != uniqueCount) {
                 print('⚠️ Warning: Duplicate components detected in initial generation');
               }
@@ -1320,13 +1320,13 @@ jobs:
                 byPlatform[platform] = (byPlatform[platform] ?? 0) + 1;
                 bySource[source] = (bySource[source] ?? 0) + 1;
               }
-                             print('By Scope: \${byScope}');
-               print('By Platform: \${byPlatform}');
-               print('By Source: \${bySource}');
+                             print('By Scope: ' + byScope.toString());
+               print('By Platform: ' + byPlatform.toString());
+               print('By Source: ' + bySource.toString());
               print('=== End Statistics ===');
                          } catch (e, stack) {
-               print('Error generating enhanced Flutter SBOM: \${e}');
-               print('Stack trace: \${stack}');
+               print('Error generating enhanced Flutter SBOM: ' + e.toString());
+               print('Stack trace: ' + stack.toString());
               exit(1);
             }
           }
