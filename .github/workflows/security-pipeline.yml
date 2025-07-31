@@ -1334,12 +1334,12 @@ jobs:
 
           dart run generate-enhanced-flutter-sbom.dart
           
-          # Validate SBOM format
-          if [ -f "enhanced-sbom.json" ]; then
-            echo "Validating SBOM format..."
-            python3 -c "import json; sbom=json.load(open('enhanced-sbom.json')); print('✅ SBOM valid with ' + str(len(sbom.get('components', []))) + ' components')"
+          # Validate Flutter SBOM format
+          if [ -f "enhanced-flutter-sbom.json" ]; then
+            echo "Validating Flutter SBOM format..."
+            python3 -c "import json; sbom=json.load(open('enhanced-flutter-sbom.json')); print('✅ Flutter SBOM valid with ' + str(len(sbom.get('components', []))) + ' components')"
           else
-            echo "❌ Enhanced SBOM not found"
+            echo "❌ Enhanced Flutter SBOM not found"
             exit 1
           fi
           
@@ -1532,6 +1532,15 @@ jobs:
           EOF
           
           python3 merge-enhanced-sboms.py
+          
+          # Validate final merged SBOM format
+          if [ -f "enhanced-sbom.json" ]; then
+            echo "Validating final merged SBOM format..."
+            python3 -c "import json; sbom=json.load(open('enhanced-sbom.json')); print('✅ Final SBOM valid with ' + str(len(sbom.get('components', []))) + ' components')"
+          else
+            echo "❌ Final merged SBOM not found"
+            exit 1
+          fi
           
           # Validate SBOM quality
           cat > validate-sbom-quality.py << 'EOF'
