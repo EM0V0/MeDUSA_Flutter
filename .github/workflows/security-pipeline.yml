@@ -2343,7 +2343,7 @@ jobs:
           # Create default dependency analysis if not exists
           if [ ! -f "dependency-analysis.json" ]; then
             echo "Creating default dependency analysis..."
-            cat > dependency-analysis.json << 'EOF'
+            cat > dependency-analysis.json << EOF
             {
               "summary": {
                 "total_components": 0,
