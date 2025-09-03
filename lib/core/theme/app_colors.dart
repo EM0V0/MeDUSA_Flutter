@@ -1,50 +1,50 @@
 import 'package:flutter/material.dart';
 
-/// 应用颜色配置 - 专为医疗应用设计的专业配色方案
+/// Application color configuration - professional color scheme designed for medical applications
 class AppColors {
-  // 主色调 - 医疗蓝
-  static const Color primary = Color(0xFF1976D2); // 专业医疗蓝
+  // Primary color - medical blue
+  static const Color primary = Color(0xFF1976D2); // Professional medical blue
   static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color primaryContainer = Color(0xFFD3E3FD);
   static const Color onPrimaryContainer = Color(0xFF001C38);
 
-  // 次要色调 - 科技绿
-  static const Color secondary = Color(0xFF2E7D57); // 健康绿
+  // Secondary color - tech green
+  static const Color secondary = Color(0xFF2E7D57); // Health green
   static const Color onSecondary = Color(0xFFFFFFFF);
   static const Color secondaryContainer = Color(0xFFB8F2D1);
   static const Color onSecondaryContainer = Color(0xFF002114);
 
-  // 第三色调 - 警告橙
-  static const Color tertiary = Color(0xFFFF8F00); // 监控警告色
+  // Tertiary color - warning orange
+  static const Color tertiary = Color(0xFFFF8F00); // Monitoring warning color
   static const Color onTertiary = Color(0xFFFFFFFF);
   static const Color tertiaryContainer = Color(0xFFFFE0B2);
   static const Color onTertiaryContainer = Color(0xFF2D1600);
 
-  // 错误色 - 医疗红
-  static const Color error = Color(0xFFD32F2F); // 紧急/危险红
+  // Error color - medical red
+  static const Color error = Color(0xFFD32F2F); // Emergency/danger red
   static const Color onError = Color(0xFFFFFFFF);
   static const Color errorContainer = Color(0xFFFFDAD6);
   static const Color onErrorContainer = Color(0xFF410002);
 
-  // 警告色
-  static const Color warning = Color(0xFFF57C00); // 警告橙
+  // Warning color
+  static const Color warning = Color(0xFFF57C00); // Warning orange
   static const Color onWarning = Color(0xFFFFFFFF);
   static const Color warningContainer = Color(0xFFFFE0B2);
   static const Color onWarningContainer = Color(0xFF2D1600);
 
-  // 成功色
-  static const Color success = Color(0xFF388E3C); // 成功绿
+  // Success color
+  static const Color success = Color(0xFF388E3C); // Success green
   static const Color onSuccess = Color(0xFFFFFFFF);
   static const Color successContainer = Color(0xFFC8E6C9);
   static const Color onSuccessContainer = Color(0xFF1B5E20);
 
-  // 信息色
-  static const Color info = Color(0xFF0288D1); // 信息蓝
+  // Info color
+  static const Color info = Color(0xFF0288D1); // Info blue
   static const Color onInfo = Color(0xFFFFFFFF);
   static const Color infoContainer = Color(0xFFB3E5FC);
   static const Color onInfoContainer = Color(0xFF01579B);
 
-  // 浅色主题表面颜色 - 优化为更明亮的配色
+  // Light theme surface colors - optimized for brighter color scheme
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightOnSurface = Color(0xFF2D3748);
   static const Color lightOnSurfaceVariant = Color(0xFF4A5568);
@@ -60,7 +60,7 @@ class AppColors {
   static const Color lightOutlineVariant = Color(0xFFCAC4D0);
   static const Color lightDivider = Color(0xFFE0E0E0);
 
-  // 深色主题表面颜色
+  // Dark theme surface colors
   static const Color darkSurface = Color(0xFF141218);
   static const Color darkOnSurface = Color(0xFFE6E1E5);
   static const Color darkOnSurfaceVariant = Color(0xFFCAC4D0);
@@ -76,7 +76,7 @@ class AppColors {
   static const Color darkOutlineVariant = Color(0xFF49454F);
   static const Color darkDivider = Color(0xFF2C2C2C);
 
-  // 通用系统颜色
+  // Universal system colors
   static const Color outline = Color(0xFF79747E);
   static const Color shadow = Color(0xFF000000);
   static const Color surfaceTint = primary;
@@ -85,39 +85,39 @@ class AppColors {
   static const Color inversePrimary = Color(0xFFBAC3FF);
   static const Color onSurfaceVariant = Color(0xFF49454F);
 
-  // 医疗数据可视化专用颜色
+  // Colors dedicated to medical data visualization
   static const List<Color> chartColors = [
-    Color(0xFF1976D2), // 主蓝色
-    Color(0xFF2E7D57), // 绿色
-    Color(0xFFFF8F00), // 橙色
-    Color(0xFF7B1FA2), // 紫色
-    Color(0xFFD32F2F), // 红色
-    Color(0xFF388E3C), // 深绿
-    Color(0xFF1976D2), // 深蓝
-    Color(0xFF795548), // 棕色
+    Color(0xFF1976D2), // Primary blue
+    Color(0xFF2E7D57), // Green
+    Color(0xFFFF8F00), // Orange
+    Color(0xFF7B1FA2), // Purple
+    Color(0xFFD32F2F), // Red
+    Color(0xFF388E3C), // Dark green
+    Color(0xFF1976D2), // Dark blue
+    Color(0xFF795548), // Brown
   ];
 
-  // 震颤等级颜色
-  static const Color lowTremor = Color(0xFF4CAF50); // 低等级 - 绿色
-  static const Color mediumTremor = Color(0xFFFF9800); // 中等级 - 橙色
-  static const Color highTremor = Color(0xFFF44336); // 高等级 - 红色
-  static const Color criticalTremor = Color(0xFF9C27B0); // 危险等级 - 紫色
+  // Tremor level colors
+  static const Color lowTremor = Color(0xFF4CAF50); // Low level - green
+  static const Color mediumTremor = Color(0xFFFF9800); // Medium level - orange
+  static const Color highTremor = Color(0xFFF44336); // High level - red
+  static const Color criticalTremor = Color(0xFF9C27B0); // Critical level - purple
 
-  // 患者状态颜色
-  static const Color stablePatient = Color(0xFF4CAF50); // 稳定 - 绿色
-  static const Color monitoringPatient = Color(0xFF2196F3); // 监控中 - 蓝色
-  static const Color warningPatient = Color(0xFFFF9800); // 警告 - 橙色
-  static const Color criticalPatient = Color(0xFFF44336); // 危急 - 红色
-  static const Color inactivePatient = Color(0xFF9E9E9E); // 不活跃 - 灰色
+  // Patient status colors
+  static const Color stablePatient = Color(0xFF4CAF50); // Stable - green
+  static const Color monitoringPatient = Color(0xFF2196F3); // Monitoring - blue
+  static const Color warningPatient = Color(0xFFFF9800); // Warning - orange
+  static const Color criticalPatient = Color(0xFFF44336); // Critical - red
+  static const Color inactivePatient = Color(0xFF9E9E9E); // Inactive - gray
 
-  // 数据质量指示器颜色
-  static const Color excellentData = Color(0xFF4CAF50); // 优秀数据质量
-  static const Color goodData = Color(0xFF8BC34A); // 良好数据质量
-  static const Color fairData = Color(0xFFFF9800); // 一般数据质量
-  static const Color poorData = Color(0xFFF44336); // 差数据质量
-  static const Color noData = Color(0xFF9E9E9E); // 无数据
+  // Data quality indicator colors
+  static const Color excellentData = Color(0xFF4CAF50); // Excellent data quality
+  static const Color goodData = Color(0xFF8BC34A); // Good data quality
+  static const Color fairData = Color(0xFFFF9800); // Fair data quality
+  static const Color poorData = Color(0xFFF44336); // Poor data quality
+  static const Color noData = Color(0xFF9E9E9E); // No data
 
-  // 渐变色组合
+  // Gradient color combinations
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
     begin: Alignment.topLeft,
@@ -142,7 +142,7 @@ class AppColors {
     end: Alignment.bottomRight,
   );
 
-  // 背景渐变
+  // Background gradients
   static const LinearGradient lightBackgroundGradient = LinearGradient(
     colors: [Color(0xFFFFFBFE), Color(0xFFF5F5F5)],
     begin: Alignment.topCenter,
@@ -155,14 +155,14 @@ class AppColors {
     end: Alignment.bottomCenter,
   );
 
-  // 透明度变体
-  static Color get primaryWithOpacity => primary.withOpacity(0.12);
-  static Color get secondaryWithOpacity => secondary.withOpacity(0.12);
-  static Color get errorWithOpacity => error.withOpacity(0.12);
-  static Color get warningWithOpacity => warning.withOpacity(0.12);
-  static Color get successWithOpacity => success.withOpacity(0.12);
+  // Opacity variants
+  static Color get primaryWithOpacity => primary.withValues(alpha: 0.12);
+  static Color get secondaryWithOpacity => secondary.withValues(alpha: 0.12);
+  static Color get errorWithOpacity => error.withValues(alpha: 0.12);
+  static Color get warningWithOpacity => warning.withValues(alpha: 0.12);
+  static Color get successWithOpacity => success.withValues(alpha: 0.12);
 
-  // 医疗等级颜色映射
+  // Medical level color mapping
   static Color getTremorLevelColor(double tremorLevel) {
     if (tremorLevel < 40) return lowTremor;
     if (tremorLevel < 70) return mediumTremor;
@@ -170,7 +170,7 @@ class AppColors {
     return criticalTremor;
   }
 
-  // 患者状态颜色映射
+  // Patient status color mapping
   static Color getPatientStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'stable':
@@ -188,7 +188,7 @@ class AppColors {
     }
   }
 
-  // 数据质量颜色映射
+  // Data quality color mapping
   static Color getDataQualityColor(double quality) {
     if (quality >= 0.9) return excellentData;
     if (quality >= 0.7) return goodData;

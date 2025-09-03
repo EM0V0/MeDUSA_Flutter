@@ -20,7 +20,7 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Patient Details'),
+        title: const Text('Patient Details'),
       ),
       body: Padding(
         padding: EdgeInsets.all(AppConstants.defaultPadding.w),

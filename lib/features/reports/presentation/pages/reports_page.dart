@@ -7,7 +7,7 @@ import '../../../../core/utils/font_utils.dart';
 import '../../../../core/utils/icon_utils.dart';
 
 class ReportsPage extends StatefulWidget {
-  const ReportsPage({Key? key}) : super(key: key);
+  const ReportsPage({super.key});
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -103,12 +103,11 @@ class _ReportsPageState extends State<ReportsPage> {
         foregroundColor: AppColors.lightSurface,
         icon: Icon(
           Icons.add,
-          size: IconUtils.responsiveIconSize(24.w, context),
+          size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
         ),
         label: Text(
           'Generate Report',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
+          style: FontUtils.body(
             fontWeight: FontWeight.w600,
             context: context,
           ),
@@ -126,8 +125,7 @@ class _ReportsPageState extends State<ReportsPage> {
           children: [
             Text(
               'Reports Management',
-              style: FontUtils.globalForceResponsiveTitleStyle(
-                fontSize: isMobile ? 36.sp : 40.sp,
+              style: FontUtils.title(
                 fontWeight: FontWeight.bold,
                 color: AppColors.lightOnSurface,
                 context: context,
@@ -136,8 +134,7 @@ class _ReportsPageState extends State<ReportsPage> {
             SizedBox(height: 8.h),
             Text(
               'Generate, view and manage patient reports',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: isMobile ? 16.sp : 18.sp,
+              style: FontUtils.body(
                 color: AppColors.lightOnSurfaceVariant,
                 context: context,
               ),
@@ -149,12 +146,11 @@ class _ReportsPageState extends State<ReportsPage> {
             onPressed: () => _showGenerateReportDialog(context),
             icon: Icon(
               Icons.add,
-              size: IconUtils.responsiveIconSize(20.w, context),
+              size: IconUtils.getResponsiveIconSize(IconSizeType.small, context),
             ),
             label: Text(
               'Generate Report',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
+              style: FontUtils.body(
                 fontWeight: FontWeight.w600,
                 context: context,
               ),
@@ -177,7 +173,7 @@ class _ReportsPageState extends State<ReportsPage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -188,8 +184,7 @@ class _ReportsPageState extends State<ReportsPage> {
         children: [
           Text(
             'Filters',
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 18.sp : 16.sp,
+            style: FontUtils.body(
               fontWeight: FontWeight.w600,
               color: AppColors.lightOnSurface,
               context: context,
@@ -231,34 +226,32 @@ class _ReportsPageState extends State<ReportsPage> {
           searchQuery = value;
         });
       },
-      style: FontUtils.globalForceResponsiveBodyStyle(
-        fontSize: isMobile ? 16.sp : 14.sp,
+      style: FontUtils.body(
         color: AppColors.lightOnSurface,
         context: context,
       ),
       decoration: InputDecoration(
         hintText: 'Search reports, patients, or authors...',
-        hintStyle: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 16.sp : 14.sp,
+        hintStyle: FontUtils.body(
           color: AppColors.lightOnSurfaceVariant,
           context: context,
         ),
         prefixIcon: Icon(
           Icons.search,
-          size: IconUtils.responsiveIconSize(isMobile ? 24.w : 20.w, context),
+          size: IconUtils.getResponsiveIconSize(isMobile ? IconSizeType.medium : IconSizeType.small, context),
           color: AppColors.lightOnSurfaceVariant,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 12.w,
@@ -271,29 +264,27 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget _buildReportTypeFilter(bool isMobile) {
     return DropdownButtonFormField<String>(
       value: selectedReportType.isEmpty ? null : selectedReportType,
-      style: FontUtils.globalForceResponsiveBodyStyle(
-        fontSize: isMobile ? 16.sp : 14.sp,
+      style: FontUtils.body(
         color: AppColors.lightOnSurface,
         context: context,
       ),
       decoration: InputDecoration(
         labelText: 'Report Type',
-        labelStyle: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 16.sp : 14.sp,
+        labelStyle: FontUtils.body(
           color: AppColors.lightOnSurfaceVariant,
           context: context,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 12.w,
@@ -305,8 +296,7 @@ class _ReportsPageState extends State<ReportsPage> {
           value: type,
           child: Text(
             type.isEmpty ? 'All Types' : type,
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 16.sp : 14.sp,
+            style: FontUtils.body(
               color: AppColors.lightOnSurface,
               context: context,
             ),
@@ -324,29 +314,27 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget _buildPatientFilter(bool isMobile) {
     return DropdownButtonFormField<String>(
       value: selectedPatientId.isEmpty ? null : selectedPatientId,
-      style: FontUtils.globalForceResponsiveBodyStyle(
-        fontSize: isMobile ? 16.sp : 14.sp,
+      style: FontUtils.body(
         color: AppColors.lightOnSurface,
         context: context,
       ),
       decoration: InputDecoration(
         labelText: 'Patient',
-        labelStyle: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 16.sp : 14.sp,
+        labelStyle: FontUtils.body(
           color: AppColors.lightOnSurfaceVariant,
           context: context,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 12.w,
@@ -358,8 +346,7 @@ class _ReportsPageState extends State<ReportsPage> {
           value: id,
           child: Text(
             id.isEmpty ? 'All Patients' : patients.firstWhere((p) => p.id == id).name,
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 16.sp : 14.sp,
+            style: FontUtils.body(
               color: AppColors.lightOnSurface,
               context: context,
             ),
@@ -384,7 +371,7 @@ class _ReportsPageState extends State<ReportsPage> {
         });
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.lightOnSurfaceVariant.withOpacity(0.1),
+        backgroundColor: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.1),
         foregroundColor: AppColors.lightOnSurface,
         elevation: 0,
         padding: EdgeInsets.symmetric(
@@ -394,8 +381,7 @@ class _ReportsPageState extends State<ReportsPage> {
       ),
       child: Text(
         'Clear',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 16.sp : 14.sp,
+        style: FontUtils.body(
           fontWeight: FontWeight.w500,
           context: context,
         ),
@@ -425,14 +411,13 @@ class _ReportsPageState extends State<ReportsPage> {
         children: [
           Icon(
             Icons.assignment_outlined,
-            size: IconUtils.responsiveIconSize(isMobile ? 80.w : 60.w, context),
+            size: IconUtils.getResponsiveIconSize(isMobile ? IconSizeType.xxlarge : IconSizeType.xlarge, context),
             color: AppColors.lightOnSurfaceVariant,
           ),
           SizedBox(height: 16.h),
           Text(
             'No reports found',
-            style: FontUtils.globalForceResponsiveTitleStyle(
-              fontSize: isMobile ? 20.sp : 18.sp,
+            style: FontUtils.title(
               fontWeight: FontWeight.w600,
               color: AppColors.lightOnSurface,
               context: context,
@@ -441,8 +426,7 @@ class _ReportsPageState extends State<ReportsPage> {
           SizedBox(height: 8.h),
           Text(
             'Try adjusting your filters or generate a new report',
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 16.sp : 14.sp,
+            style: FontUtils.body(
               color: AppColors.lightOnSurfaceVariant,
               context: context,
             ),
@@ -462,7 +446,7 @@ class _ReportsPageState extends State<ReportsPage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -476,8 +460,7 @@ class _ReportsPageState extends State<ReportsPage> {
               Expanded(
                 child: Text(
                   report.title,
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: isMobile ? 16.sp : 14.sp,
+                  style: FontUtils.body(
                     fontWeight: FontWeight.w600,
                     color: AppColors.lightOnSurface,
                     context: context,
@@ -492,14 +475,13 @@ class _ReportsPageState extends State<ReportsPage> {
             children: [
               Icon(
                 Icons.person_outline,
-                size: IconUtils.responsiveIconSize(isMobile ? 18.w : 16.w, context),
+                size: IconUtils.getResponsiveIconSize(IconSizeType.small, context),
                 color: AppColors.lightOnSurfaceVariant,
               ),
               SizedBox(width: 4.w),
               Text(
                 report.patientName,
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: isMobile ? 14.sp : 12.sp,
+                style: FontUtils.body(
                   color: AppColors.lightOnSurfaceVariant,
                   context: context,
                 ),
@@ -507,14 +489,13 @@ class _ReportsPageState extends State<ReportsPage> {
               SizedBox(width: 16.w),
               Icon(
                 Icons.person_outline,
-                size: IconUtils.responsiveIconSize(isMobile ? 18.w : 16.w, context),
+                size: IconUtils.getResponsiveIconSize(IconSizeType.small, context),
                 color: AppColors.lightOnSurfaceVariant,
               ),
               SizedBox(width: 4.w),
               Text(
                 'By ${report.author}',
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: isMobile ? 14.sp : 12.sp,
+                style: FontUtils.body(
                   color: AppColors.lightOnSurfaceVariant,
                   context: context,
                 ),
@@ -526,14 +507,13 @@ class _ReportsPageState extends State<ReportsPage> {
             children: [
               Icon(
                 Icons.calendar_today_outlined,
-                size: IconUtils.responsiveIconSize(isMobile ? 18.w : 16.w, context),
+                size: IconUtils.getResponsiveIconSize(IconSizeType.small, context),
                 color: AppColors.lightOnSurfaceVariant,
               ),
               SizedBox(width: 4.w),
               Text(
                 _formatDate(report.createdDate),
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: isMobile ? 14.sp : 12.sp,
+                style: FontUtils.body(
                   color: AppColors.lightOnSurfaceVariant,
                   context: context,
                 ),
@@ -544,7 +524,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   onPressed: () => _viewReport(report),
                   icon: Icon(
                     Icons.visibility_outlined,
-                    size: IconUtils.responsiveIconSize(isMobile ? 24.w : 20.w, context),
+                    size: IconUtils.getResponsiveIconSize(isMobile ? IconSizeType.medium : IconSizeType.small, context),
                     color: AppColors.primary,
                   ),
                   tooltip: 'View Report',
@@ -553,7 +533,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   onPressed: () => _downloadReport(report),
                   icon: Icon(
                     Icons.download_outlined,
-                    size: IconUtils.responsiveIconSize(isMobile ? 24.w : 20.w, context),
+                    size: IconUtils.getResponsiveIconSize(isMobile ? IconSizeType.medium : IconSizeType.small, context),
                     color: AppColors.success,
                   ),
                   tooltip: 'Download Report',
@@ -563,7 +543,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 onPressed: () => _deleteReport(report),
                 icon: Icon(
                   Icons.delete_outline,
-                  size: IconUtils.responsiveIconSize(isMobile ? 24.w : 20.w, context),
+                  size: IconUtils.getResponsiveIconSize(isMobile ? IconSizeType.medium : IconSizeType.small, context),
                   color: AppColors.error,
                 ),
                 tooltip: 'Delete Report',
@@ -582,12 +562,12 @@ class _ReportsPageState extends State<ReportsPage> {
 
     switch (status) {
       case ReportStatus.processing:
-        backgroundColor = AppColors.warning.withOpacity(0.1);
+        backgroundColor = AppColors.warning.withValues(alpha: 0.1);
         textColor = AppColors.warning;
         label = 'Processing';
         break;
       case ReportStatus.completed:
-        backgroundColor = AppColors.success.withOpacity(0.1);
+        backgroundColor = AppColors.success.withValues(alpha: 0.1);
         textColor = AppColors.success;
         label = 'Completed';
         break;
@@ -604,8 +584,7 @@ class _ReportsPageState extends State<ReportsPage> {
       ),
       child: Text(
         label,
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 12.sp : 10.sp,
+        style: FontUtils.body(
           fontWeight: FontWeight.w600,
           color: textColor,
           context: context,
@@ -620,15 +599,13 @@ class _ReportsPageState extends State<ReportsPage> {
       builder: (context) => AlertDialog(
         title: Text(
           'Generate New Report',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: 18.sp,
+          style: FontUtils.title(
             context: context,
           ),
         ),
         content: Text(
           'Report generation feature will be implemented soon.',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: 14.sp,
+          style: FontUtils.body(
             context: context,
           ),
         ),
@@ -637,8 +614,7 @@ class _ReportsPageState extends State<ReportsPage> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'OK',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
+              style: FontUtils.body(
                 context: context,
               ),
             ),
@@ -653,8 +629,7 @@ class _ReportsPageState extends State<ReportsPage> {
       SnackBar(
           content: Text(
         'Viewing report: ${report.title}',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
+        style: FontUtils.body(
           context: context,
         ),
       )),
@@ -666,8 +641,7 @@ class _ReportsPageState extends State<ReportsPage> {
       SnackBar(
           content: Text(
         'Downloading report: ${report.title}',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
+        style: FontUtils.body(
           context: context,
         ),
       )),
@@ -680,15 +654,13 @@ class _ReportsPageState extends State<ReportsPage> {
       builder: (context) => AlertDialog(
         title: Text(
           'Delete Report',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: 18.sp,
+          style: FontUtils.title(
             context: context,
           ),
         ),
         content: Text(
           'Are you sure you want to delete "${report.title}"?',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: 14.sp,
+          style: FontUtils.body(
             context: context,
           ),
         ),
@@ -697,8 +669,7 @@ class _ReportsPageState extends State<ReportsPage> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
+              style: FontUtils.body(
                 context: context,
               ),
             ),
@@ -710,8 +681,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 SnackBar(
                     content: Text(
                   'Deleted report: ${report.title}',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: 14.sp,
+                  style: FontUtils.body(
                     context: context,
                   ),
                 )),
@@ -719,8 +689,7 @@ class _ReportsPageState extends State<ReportsPage> {
             },
             child: Text(
               'Delete',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
+              style: FontUtils.body(
                 context: context,
               ),
             ),

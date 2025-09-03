@@ -46,7 +46,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildHeader() {
-    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
     return Container(
       padding: EdgeInsets.all(24.w),
       decoration: BoxDecoration(
@@ -54,7 +53,7 @@ class _DashboardPageState extends State<DashboardPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -69,21 +68,19 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 Text(
                   'Patient Monitoring Dashboard',
-                  style: FontUtils.globalForceResponsiveTitleStyle(
-                    fontSize: ResponsiveBreakpoints.of(context).smallerThan(TABLET) ? 28.sp : 32.sp,
+                  style: FontUtils.title(
+                    context: context,
                     fontWeight: FontWeight.w700,
                     color: AppColors.lightOnSurface,
-                    context: context,
                   ),
                 ),
                 SizedBox(height: 8.h),
                 Text(
                   'Welcome back, Dr. Smith. You have 3 critical patients today.',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: isMobile ? 14.sp : 16.sp,
+                  style: FontUtils.body(
+                    context: context,
                     color: AppColors.lightOnSurfaceVariant,
                     fontWeight: FontWeight.w400,
-                    context: context,
                   ),
                 ),
               ],
@@ -105,13 +102,14 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               icon: Icon(
                 Icons.add,
-                size: IconUtils.responsiveIconSize(20.w, context),
+                size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
               ),
-              label: FontUtils.protectedButton(
+              label: Text(
                 'Add Patient',
-                context: context,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
+                style: FontUtils.body(
+                  context: context,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -155,7 +153,7 @@ class _DashboardPageState extends State<DashboardPage> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -172,24 +170,23 @@ class _DashboardPageState extends State<DashboardPage> {
                   Expanded(
                     child: Text(
                       title,
-                      style: FontUtils.globalForceResponsiveBodyStyle(
-                        fontSize: 14.sp,
+                      style: FontUtils.body(
+                        context: context,
                         color: AppColors.lightOnSurfaceVariant,
                         fontWeight: FontWeight.w500,
-                        context: context,
                       ),
                     ),
                   ),
                   Container(
                     padding: EdgeInsets.all(8.w),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       icon,
                       color: AppColors.primary,
-                      size: IconUtils.responsiveIconSize(24.w, context),
+                      size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                     ),
                   ),
                 ],
@@ -197,21 +194,19 @@ class _DashboardPageState extends State<DashboardPage> {
               SizedBox(height: 12.h),
               Text(
                 value,
-                style: FontUtils.globalForceResponsiveTitleStyle(
-                  fontSize: 28.sp,
+                style: FontUtils.title(
+                  context: context,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
-                  context: context,
                 ),
               ),
               SizedBox(height: 6.h),
               Text(
                 subtitle,
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: 12.sp,
+                style: FontUtils.body(
+                  context: context,
                   color: AppColors.success,
                   fontWeight: FontWeight.w500,
-                  context: context,
                 ),
               ),
             ],
@@ -228,7 +223,7 @@ class _DashboardPageState extends State<DashboardPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -239,18 +234,17 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 响应式标题布局
+            // Responsive title layout
             ResponsiveBreakpoints.of(context).smallerThan(TABLET)
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Tremor Activity Overview',
-                        style: FontUtils.globalForceResponsiveTitleStyle(
-                          fontSize: 20.sp,
+                        style: FontUtils.title(
+                          context: context,
                           fontWeight: FontWeight.w600,
                           color: AppColors.lightOnSurface,
-                          context: context,
                         ),
                       ),
                       SizedBox(height: 12.h),
@@ -266,11 +260,10 @@ class _DashboardPageState extends State<DashboardPage> {
                       Expanded(
                         child: Text(
                           'Tremor Activity Overview',
-                          style: FontUtils.globalForceResponsiveTitleStyle(
-                            fontSize: 20.sp,
+                          style: FontUtils.title(
+                            context: context,
                             fontWeight: FontWeight.w600,
                             color: AppColors.lightOnSurface,
-                            context: context,
                           ),
                         ),
                       ),
@@ -295,7 +288,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -342,7 +335,7 @@ class _DashboardPageState extends State<DashboardPage> {
           selectedBackgroundColor: AppColors.primary,
           selectedForegroundColor: Colors.white,
           foregroundColor: AppColors.lightOnSurface,
-          // 移动端优化：增大按钮内边距
+          // Mobile optimization: increase button padding
           padding: EdgeInsets.symmetric(
             horizontal: isMobile ? 16.w : 12.w,
             vertical: isMobile ? 12.h : 8.h,
@@ -353,11 +346,10 @@ class _DashboardPageState extends State<DashboardPage> {
             value: 'realtime',
             label: Text(
               isMobile ? 'Real-time' : 'Real-time',
-              // 移动端优化：确保最小可读性
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: isMobile ? 16.sp : 14.sp,
-                fontWeight: FontWeight.w600,
+              // Mobile optimization: ensure minimum readability
+              style: FontUtils.body(
                 context: context,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -365,11 +357,10 @@ class _DashboardPageState extends State<DashboardPage> {
             value: 'hourly',
             label: Text(
               'Hourly',
-              // 移动端优化：确保最小可读性
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: isMobile ? 16.sp : 14.sp,
-                fontWeight: FontWeight.w600,
+              // Mobile optimization: ensure minimum readability
+              style: FontUtils.body(
                 context: context,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -377,16 +368,15 @@ class _DashboardPageState extends State<DashboardPage> {
             value: 'daily',
             label: Text(
               'Daily',
-              // 移动端优化：确保最小可读性
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: isMobile ? 16.sp : 14.sp,
-                fontWeight: FontWeight.w600,
+              // Mobile optimization: ensure minimum readability
+              style: FontUtils.body(
                 context: context,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ],
-        selected: {'realtime'},
+        selected: const {'realtime'},
         onSelectionChanged: (selection) {
           // TODO: Handle time range change
         },
@@ -401,7 +391,7 @@ class _DashboardPageState extends State<DashboardPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -479,7 +469,7 @@ class _DashboardPageState extends State<DashboardPage> {
             width: 40.w,
             height: 40.w,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -528,38 +518,31 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: FontUtils.protectedDialogTitle(
-            'Add New Patient',
-            context: context,
-          ),
-          content: FontUtils.protectedDialogContent(
-            'This feature will be implemented in the next update.',
-            context: context,
-          ),
+          title: FontUtils.titleText('Add New Patient', context),
+          content: FontUtils.bodyText('This feature will be implemented in the next update.', context),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: FontUtils.protectedButton(
-                'Cancel',
-                context: context,
-                fontSize: 14.sp,
-              ),
+              child: FontUtils.bodyText('Cancel', context),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  FontUtils.protectedSnackBar(
-                    'Patient added successfully!',
-                    context: context,
+                  SnackBar(
+                    content: FontUtils.bodyText(
+                      'Patient added successfully!',
+                      context
+                    ),
                   ),
                 );
               },
-              child: FontUtils.protectedButton(
+              child: Text(
                 'Add',
-                context: context,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
+                style: FontUtils.body(
+                  context: context,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -585,11 +568,7 @@ class _DashboardPageState extends State<DashboardPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: FontUtils.protectedButton(
-                'Close',
-                context: context,
-                fontSize: 14.sp,
-              ),
+              child: FontUtils.bodyText('Close', context),
             ),
           ],
         );

@@ -26,7 +26,7 @@ class MeDUSAApp extends StatelessWidget {
         ),
       ],
       child: ScreenUtilInit(
-        // 设计稿尺寸 (基于1920x1080桌面尺寸)
+        // Design size (based on 1920x1080 desktop size)
         designSize: const Size(1920, 1080),
         minTextAdapt: true,
         splitScreenMode: true,
@@ -39,7 +39,7 @@ class MeDUSAApp extends StatelessWidget {
             themeMode: ThemeMode.light,
             routerConfig: AppRouter.router,
             builder: (context, child) {
-              // 响应式框架配置
+              // Responsive framework configuration
               return ResponsiveBreakpoints.builder(
                 child: child!,
                 breakpoints: [

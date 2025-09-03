@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/font_utils.dart';
 import '../../../core/utils/icon_utils.dart';
@@ -54,7 +53,7 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
-    // 不在initState中调用_updateSelectedIndex，因为此时context未完全初始化
+    // Don't call _updateSelectedIndex in initState because context is not fully initialized at this point
   }
 
   @override
@@ -81,8 +80,8 @@ class _MainLayoutState extends State<MainLayout> {
         }
       }
     } catch (e) {
-      // 如果GoRouterState还未准备好，忽略错误
-      print('GoRouterState not ready: $e');
+      // If GoRouterState is not ready yet, ignore the error
+      debugPrint('GoRouterState not ready: $e');
     }
   }
 
@@ -96,26 +95,23 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
-
     return AppBar(
       title: Row(
         children: [
           Icon(
             Icons.medical_services_rounded,
             color: AppColors.onPrimary,
-            // 应用图标大小保护
-            size: IconUtils.responsiveIconSize(isMobile ? 28.w : 20.w, context),
+            // Apply icon size protection
+            size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
           ),
           SizedBox(width: 8.w),
           Expanded(
             child: Text(
               AppConstants.appName,
-              style: FontUtils.globalForceResponsiveTitleStyle(
-                fontSize: isMobile ? 20.sp : 18.sp,
+              style: FontUtils.title(
+                context: context,
                 fontWeight: FontWeight.bold,
                 color: AppColors.onPrimary,
-                context: context,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -126,7 +122,7 @@ class _MainLayoutState extends State<MainLayout> {
         IconButton(
           icon: Icon(
             Icons.notifications_outlined,
-            size: IconUtils.responsiveIconSize(24.w, context),
+            size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
           ),
           onPressed: () {
             // TODO: Show notifications
@@ -136,7 +132,7 @@ class _MainLayoutState extends State<MainLayout> {
           icon: CircleAvatar(
             child: Icon(
               Icons.person,
-              size: IconUtils.responsiveIconSize(20.w, context),
+              size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
             ),
           ),
           onSelected: (value) {
@@ -157,10 +153,10 @@ class _MainLayoutState extends State<MainLayout> {
                   Icon(
                     Icons.person_outline,
                     color: AppColors.primary,
-                    size: IconUtils.responsiveIconSize(20.w, context),
+                    size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                   ),
-                  SizedBox(width: 8),
-                  Text('Profile'),
+                  const SizedBox(width: 8),
+                  const Text('Profile'),
                 ],
               ),
             ),
@@ -171,10 +167,10 @@ class _MainLayoutState extends State<MainLayout> {
                   Icon(
                     Icons.logout,
                     color: AppColors.error,
-                    size: IconUtils.responsiveIconSize(20.w, context),
+                    size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                   ),
-                  SizedBox(width: 8),
-                  Text('Logout'),
+                  const SizedBox(width: 8),
+                  const Text('Logout'),
                 ],
               ),
             ),
@@ -197,7 +193,7 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildSideNavigation() {
     return Container(
       width: 240.w,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.lightSurface,
         border: Border(
           right: BorderSide(
@@ -224,15 +220,14 @@ class _MainLayoutState extends State<MainLayout> {
                     leading: Icon(
                       isSelected ? item.selectedIcon : item.icon,
                       color: isSelected ? AppColors.primary : AppColors.lightOnSurfaceVariant,
-                      size: IconUtils.responsiveIconSize(24.w, context),
+                      size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                     ),
                     title: Text(
                       item.label,
-                      style: FontUtils.globalForceResponsiveBodyStyle(
-                        fontSize: 14.sp,
+                      style: FontUtils.body(
+                        context: context,
                         color: isSelected ? AppColors.primary : AppColors.lightOnSurface,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        context: context,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -240,7 +235,7 @@ class _MainLayoutState extends State<MainLayout> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    selectedTileColor: AppColors.primary.withOpacity(0.1),
+                    selectedTileColor: AppColors.primary.withValues(alpha: 0.1),
                     onTap: () => _onNavItemTapped(index),
                   ),
                 );
@@ -259,26 +254,24 @@ class _MainLayoutState extends State<MainLayout> {
       onTap: _onNavItemTapped,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.lightOnSurfaceVariant,
-      selectedLabelStyle: FontUtils.globalForceResponsiveBodyStyle(
-        fontSize: 12.sp,
+      selectedLabelStyle: FontUtils.caption(
+        context: context,
         fontWeight: FontWeight.w600,
-        context: context,
       ),
-      unselectedLabelStyle: FontUtils.globalForceResponsiveBodyStyle(
-        fontSize: 12.sp,
-        fontWeight: FontWeight.w500,
+      unselectedLabelStyle: FontUtils.caption(
         context: context,
+        fontWeight: FontWeight.w500,
       ),
       items: _navigationItems
           .map(
             (item) => BottomNavigationBarItem(
               icon: Icon(
                 item.icon,
-                size: IconUtils.responsiveIconSize(24.w, context),
+                size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
               ),
               activeIcon: Icon(
                 item.selectedIcon,
-                size: IconUtils.responsiveIconSize(24.w, context),
+                size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
               ),
               label: item.label,
             ),
@@ -310,9 +303,8 @@ class _MainLayoutState extends State<MainLayout> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // 清除认证状态
-              AppRouter.setAuthenticated(false);
-              // 跳转到登录页面
+              // Clear authentication state and navigate to login
+              // TODO: integrate real auth state reset via bloc/service
               context.go('/login');
             },
             child: const Text('Logout'),

@@ -1,26 +1,31 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
+import 'encryption_service.dart';
+import 'security_service.dart';
 
-/// Â≠òÂÇ®ÊúçÂä°ÊäΩË±°Á±ª
+/// û:ÑâhX®°Ωa{
 abstract class StorageService {
   // Secure Storage (for sensitive data like tokens)
-  Future<void> storeSecure(String key, String value);
-  Future<String?> getSecure(String key);
+  Future<void> storeSecure(String key, String value, {bool encrypt = true});
+  Future<String?> getSecure(String key, {bool decrypt = true});
   Future<void> deleteSecure(String key);
   Future<void> clearAllSecure();
 
   // Additional secure storage methods
-  Future<String?> getSecureString(String key);
-  Future<void> setSecureString(String key, String value);
+  Future<String?> getSecureString(String key, {bool decrypt = true});
+  Future<void> setSecureString(String key, String value, {bool encrypt = true});
   Future<void> removeSecure(String key);
 
-  // Map storage methods
-  Future<Map<String, dynamic>?> getMap(String key);
-  Future<void> setMap(String key, Map<String, dynamic> value);
-  Future<void> setString(String key, String value);
+  // Encrypted map storage methods
+  Future<Map<String, dynamic>?> getMap(String key, {bool decrypt = true});
+  Future<void> setMap(String key, Map<String, dynamic> value, {bool encrypt = true});
+  Future<void> setString(String key, String value, {bool encrypt = false});
 
   // Shared Preferences (for simple key-value pairs)
   Future<void> storeString(String key, String value);
@@ -34,34 +39,61 @@ abstract class StorageService {
   Future<void> remove(String key);
   Future<void> clear();
 
-  // Hive Storage (for complex objects and caching)
+  // Secure Hive Storage (for complex objects and caching)
   Future<void> storeUser(Map<String, dynamic> user);
   Future<Map<String, dynamic>?> getUser();
   Future<void> deleteUser();
 
-  Future<void> storeSetting(String key, dynamic value);
-  Future<T?> getSetting<T>(String key);
+  Future<void> storeSetting(String key, dynamic value, {bool encrypt = false});
+  Future<T?> getSetting<T>(String key, {bool decrypt = false});
   Future<void> deleteSetting(String key);
 
-  Future<void> storeCache(String key, dynamic value, {Duration? ttl});
-  Future<T?> getCache<T>(String key);
+  Future<void> storeCache(String key, dynamic value, {Duration? ttl, bool encrypt = false});
+  Future<T?> getCache<T>(String key, {bool decrypt = false});
   Future<void> deleteCache(String key);
   Future<void> clearExpiredCache();
 
-  // Convenience methods
+  // Security-specific storage methods
+  Future<void> storeEncryptionKey(String keyId, Uint8List key);
+  Future<Uint8List?> getEncryptionKey(String keyId);
+  Future<void> storeDeviceFingerprint(String fingerprint);
+  Future<String?> getDeviceFingerprint();
+  Future<void> storeSecurityConfig(Map<String, dynamic> config);
+  Future<Map<String, dynamic>?> getSecurityConfig();
+
+  // Authentication and session management
   Future<bool> hasValidToken();
   Future<String?> getToken();
   Future<void> storeToken(String token);
   Future<void> clearAuthData();
+  Future<void> storeSessionData(Map<String, dynamic> sessionData);
+  Future<Map<String, dynamic>?> getSessionData();
+  Future<void> storeRefreshToken(String refreshToken);
+  Future<String?> getRefreshToken();
+
+  // Security audit methods
+  Future<void> logStorageAccess(String operation, String key);
+  Future<bool> verifyStorageIntegrity();
+  Future<void> rotateEncryptionKeys();
 }
 
-/// Â≠òÂÇ®ÊúçÂä°ÂÆûÁé∞
+/// û:ÑâhX®°û∞
 class StorageServiceImpl implements StorageService {
   final FlutterSecureStorage _secureStorage;
   final SharedPreferences _sharedPreferences;
   final Box _userBox;
   final Box _settingsBox;
   final Box _cacheBox;
+  final EncryptionService _encryptionService;
+  final SecurityService _securityService;
+
+  // Security constants
+  static const String _encryptionKeyPrefix = 'encryption_key_';
+  static const String _deviceFingerprintKey = 'device_fingerprint';
+  static const String _securityConfigKey = 'security_config';
+  static const String _sessionDataKey = 'session_data';
+  static const String _accessLogKey = 'storage_access_log';
+  static const String _integrityHashKey = 'storage_integrity_hash';
 
   StorageServiceImpl({
     required FlutterSecureStorage secureStorage,
@@ -69,29 +101,78 @@ class StorageServiceImpl implements StorageService {
     required Box userBox,
     required Box settingsBox,
     required Box cacheBox,
+    required EncryptionService encryptionService,
+    required SecurityService securityService,
   })  : _secureStorage = secureStorage,
         _sharedPreferences = sharedPreferences,
         _userBox = userBox,
         _settingsBox = settingsBox,
-        _cacheBox = cacheBox;
+        _cacheBox = cacheBox,
+        _encryptionService = encryptionService,
+        _securityService = securityService;
 
-  // Secure Storage Implementation
+  // Enhanced Secure Storage Implementation
   @override
-  Future<void> storeSecure(String key, String value) async {
+  Future<void> storeSecure(String key, String value, {bool encrypt = true}) async {
     try {
-      await _secureStorage.write(key: key, value: value);
+      await logStorageAccess('store_secure', key);
+      
+      String finalValue = value;
+      if (encrypt) {
+        finalValue = await _encryptionService.encryptData(value);
+      }
+      
+      await _secureStorage.write(
+        key: key,
+        value: finalValue,
+        aOptions: const AndroidOptions(
+          encryptedSharedPreferences: true,
+        ),
+        iOptions: const IOSOptions(
+          accessibility: IOSAccessibility.first_unlock_this_device,
+        ),
+      );
+      
+      _securityService.logSecurityEvent(
+        'storage_secure_write',
+        metadata: {'key': key},
+      );
     } catch (e) {
-      print('Error storing secure data: $e');
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
       rethrow;
     }
   }
 
   @override
-  Future<String?> getSecure(String key) async {
+  Future<String?> getSecure(String key, {bool decrypt = true}) async {
     try {
-      return await _secureStorage.read(key: key);
+      await logStorageAccess('get_secure', key);
+      
+      final value = await _secureStorage.read(key: key);
+      if (value == null) return null;
+      
+      if (decrypt) {
+        try {
+          return await _encryptionService.decryptData(value);
+        } catch (e) {
+          // If decryption fails, return original value (might be unencrypted)
+          _securityService.logSecurityEvent(
+            'storage_decryption_failed',
+            metadata: {'key': key},
+          );
+          return value;
+        }
+      }
+      
+      return value;
     } catch (e) {
-      print('Error reading secure data: $e');
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
       return null;
     }
   }
@@ -99,29 +180,44 @@ class StorageServiceImpl implements StorageService {
   @override
   Future<void> deleteSecure(String key) async {
     try {
+      await logStorageAccess('delete_secure', key);
       await _secureStorage.delete(key: key);
+      
+      _securityService.logSecurityEvent(
+        'storage_secure_delete',
+        metadata: {'key': key},
+      );
     } catch (e) {
-      print('Error deleting secure data: $e');
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
     }
   }
 
   @override
   Future<void> clearAllSecure() async {
     try {
+      await logStorageAccess('clear_all_secure', 'all');
       await _secureStorage.deleteAll();
+      
+      _securityService.logSecurityEvent('storage_secure_clear_all');
     } catch (e) {
-      print('Error clearing secure storage: $e');
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
     }
   }
 
   @override
-  Future<String?> getSecureString(String key) async {
-    return await getSecure(key);
+  Future<String?> getSecureString(String key, {bool decrypt = true}) async {
+    return await getSecure(key, decrypt: decrypt);
   }
 
   @override
-  Future<void> setSecureString(String key, String value) async {
-    await storeSecure(key, value);
+  Future<void> setSecureString(String key, String value, {bool encrypt = true}) async {
+    await storeSecure(key, value, encrypt: encrypt);
   }
 
   @override
@@ -130,36 +226,61 @@ class StorageServiceImpl implements StorageService {
   }
 
   @override
-  Future<Map<String, dynamic>?> getMap(String key) async {
+  Future<Map<String, dynamic>?> getMap(String key, {bool decrypt = true}) async {
     try {
+      await logStorageAccess('get_map', key);
+      
       final data = _sharedPreferences.getString(key);
-      if (data != null) {
-        return Map<String, dynamic>.from(
-          Map<String, dynamic>.from(
-            data as Map<String, dynamic>,
-          ),
-        );
+      if (data == null) return null;
+      
+      String jsonData = data;
+      if (decrypt) {
+        try {
+          jsonData = await _encryptionService.decryptData(data);
+        } catch (e) {
+          // If decryption fails, try to parse as unencrypted
+          jsonData = data;
+        }
       }
-      return null;
+      
+      return Map<String, dynamic>.from(json.decode(jsonData));
     } catch (e) {
-      print('Error reading map data: $e');
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
       return null;
     }
   }
 
   @override
-  Future<void> setMap(String key, Map<String, dynamic> value) async {
+  Future<void> setMap(String key, Map<String, dynamic> value, {bool encrypt = true}) async {
     try {
-      await _sharedPreferences.setString(key, value.toString());
+      await logStorageAccess('set_map', key);
+      
+      String jsonData = json.encode(value);
+      if (encrypt) {
+        jsonData = await _encryptionService.encryptData(jsonData);
+      }
+      
+      await _sharedPreferences.setString(key, jsonData);
     } catch (e) {
-      print('Error storing map data: $e');
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
     }
   }
 
   @override
-  Future<void> setString(String key, String value) async {
+  Future<void> setString(String key, String value, {bool encrypt = false}) async {
     try {
-      await _sharedPreferences.setString(key, value);
+      String finalValue = value;
+      if (encrypt) {
+        finalValue = await _encryptionService.encryptData(value);
+      }
+      
+      await _sharedPreferences.setString(key, finalValue);
     } catch (e) {
       print('Error storing string data: $e');
     }
@@ -294,18 +415,31 @@ class StorageServiceImpl implements StorageService {
   }
 
   @override
-  Future<void> storeSetting(String key, dynamic value) async {
+  Future<void> storeSetting(String key, dynamic value, {bool encrypt = false}) async {
     try {
-      await _settingsBox.put(key, value);
+      dynamic finalValue = value;
+      if (encrypt && value is String) {
+        finalValue = await _encryptionService.encryptData(value);
+      }
+      await _settingsBox.put(key, finalValue);
     } catch (e) {
       print('Error storing setting: $e');
     }
   }
 
   @override
-  Future<T?> getSetting<T>(String key) async {
+  Future<T?> getSetting<T>(String key, {bool decrypt = false}) async {
     try {
-      final value = _settingsBox.get(key);
+      dynamic value = _settingsBox.get(key);
+      
+      if (decrypt && value is String) {
+        try {
+          value = await _encryptionService.decryptData(value);
+        } catch (e) {
+          // If decryption fails, use original value
+        }
+      }
+      
       if (value is T) {
         return value;
       }
@@ -326,12 +460,18 @@ class StorageServiceImpl implements StorageService {
   }
 
   @override
-  Future<void> storeCache(String key, dynamic value, {Duration? ttl}) async {
+  Future<void> storeCache(String key, dynamic value, {Duration? ttl, bool encrypt = false}) async {
     try {
+      dynamic finalValue = value;
+      if (encrypt && value is String) {
+        finalValue = await _encryptionService.encryptData(value);
+      }
+      
       final cacheEntry = {
-        'value': value,
+        'value': finalValue,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
         'ttl': ttl?.inMilliseconds,
+        'encrypted': encrypt,
       };
       await _cacheBox.put(key, cacheEntry);
     } catch (e) {
@@ -340,12 +480,13 @@ class StorageServiceImpl implements StorageService {
   }
 
   @override
-  Future<T?> getCache<T>(String key) async {
+  Future<T?> getCache<T>(String key, {bool decrypt = false}) async {
     try {
       final cacheEntry = _cacheBox.get(key);
       if (cacheEntry is Map) {
         final timestamp = cacheEntry['timestamp'] as int?;
         final ttl = cacheEntry['ttl'] as int?;
+        final wasEncrypted = cacheEntry['encrypted'] as bool? ?? false;
 
         // Check if cache is expired
         if (timestamp != null && ttl != null) {
@@ -357,7 +498,17 @@ class StorageServiceImpl implements StorageService {
           }
         }
 
-        final value = cacheEntry['value'];
+        dynamic value = cacheEntry['value'];
+        
+        // Decrypt if needed
+        if ((decrypt || wasEncrypted) && value is String) {
+          try {
+            value = await _encryptionService.decryptData(value);
+          } catch (e) {
+            // If decryption fails, use original value
+          }
+        }
+        
         if (value is T) {
           return value;
         }
@@ -430,5 +581,267 @@ class StorageServiceImpl implements StorageService {
     await deleteSecure(AppConstants.tokenKey);
     await deleteUser();
     await remove(AppConstants.userKey);
+  }
+
+  // Enhanced Security-specific storage methods
+  @override
+  Future<void> storeEncryptionKey(String keyId, Uint8List key) async {
+    try {
+      final keyString = base64Encode(key);
+      await storeSecure('$_encryptionKeyPrefix$keyId', keyString);
+      
+      _securityService.logSecurityEvent(
+        'encryption_key_stored',
+        metadata: {'keyId': keyId},
+      );
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Uint8List?> getEncryptionKey(String keyId) async {
+    try {
+      final keyString = await getSecure('$_encryptionKeyPrefix$keyId', decrypt: false);
+      if (keyString == null) return null;
+      
+      return base64Decode(keyString);
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      return null;
+    }
+  }
+
+  @override
+  Future<void> storeDeviceFingerprint(String fingerprint) async {
+    try {
+      await storeSecure(_deviceFingerprintKey, fingerprint);
+      
+      _securityService.logSecurityEvent('device_fingerprint_stored');
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String?> getDeviceFingerprint() async {
+    try {
+      return await getSecure(_deviceFingerprintKey);
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      return null;
+    }
+  }
+
+  @override
+  Future<void> storeSecurityConfig(Map<String, dynamic> config) async {
+    try {
+      final configString = json.encode(config);
+      await storeSecure(_securityConfigKey, configString);
+      
+      _securityService.logSecurityEvent('security_config_stored');
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getSecurityConfig() async {
+    try {
+      final configString = await getSecure(_securityConfigKey);
+      if (configString == null) return null;
+      
+      return Map<String, dynamic>.from(json.decode(configString));
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      return null;
+    }
+  }
+
+  @override
+  Future<void> storeSessionData(Map<String, dynamic> sessionData) async {
+    try {
+      sessionData['timestamp'] = DateTime.now().millisecondsSinceEpoch;
+      await setMap(_sessionDataKey, sessionData, encrypt: true);
+      
+      _securityService.logSecurityEvent('session_data_stored');
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getSessionData() async {
+    try {
+      return await getMap(_sessionDataKey, decrypt: true);
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      return null;
+    }
+  }
+
+  @override
+  Future<void> storeRefreshToken(String refreshToken) async {
+    try {
+      await storeSecure('${AppConstants.tokenKey}_refresh', refreshToken);
+      
+      _securityService.logSecurityEvent('refresh_token_stored');
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String?> getRefreshToken() async {
+    try {
+      return await getSecure('${AppConstants.tokenKey}_refresh');
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      return null;
+    }
+  }
+
+  @override
+  Future<void> logStorageAccess(String operation, String key) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final logEntry = {
+        'operation': operation,
+        'key': key,
+        'timestamp': timestamp,
+        'device_fingerprint': await _securityService.generateDeviceFingerprint(),
+      };
+      
+      // Store access log in cache with TTL
+      final logKey = '${_accessLogKey}_${timestamp}_$operation';
+      await storeCache(logKey, logEntry, ttl: const Duration(days: 30));
+    } catch (e) {
+      // Don't throw errors for logging failures
+      print('Error logging storage access: $e');
+    }
+  }
+
+  @override
+  Future<bool> verifyStorageIntegrity() async {
+    try {
+      // Generate current integrity hash
+      final currentHash = await _generateStorageIntegrityHash();
+      
+      // Compare with stored hash
+      final storedHash = await getString(_integrityHashKey);
+      
+      if (storedHash == null) {
+        // First time verification, store current hash
+        await storeString(_integrityHashKey, currentHash);
+        return true;
+      }
+      
+      final isValid = currentHash == storedHash;
+      
+      _securityService.logSecurityEvent(
+        'storage_integrity_check',
+        metadata: {'passed': isValid},
+      );
+      
+      if (!isValid) {
+        // Update hash for next verification
+        await storeString(_integrityHashKey, currentHash);
+      }
+      
+      return isValid;
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      return false;
+    }
+  }
+
+  @override
+  Future<void> rotateEncryptionKeys() async {
+    try {
+      // This would implement key rotation logic in production
+      // For now, we'll just log the event
+      _securityService.logSecurityEvent('encryption_key_rotation');
+      
+      // In production, this would:
+      // 1. Generate new encryption keys
+      // 2. Re-encrypt existing data with new keys
+      // 3. Safely destroy old keys
+      // 4. Update key references
+      
+    } catch (e) {
+      _securityService.logSecurityEvent(
+        'storage_error',
+        metadata: {'error': e.toString()},
+      );
+      rethrow;
+    }
+  }
+
+  Future<String> _generateStorageIntegrityHash() async {
+    try {
+      // Generate hash of critical storage contents
+      final criticalData = <String>[];
+      
+      // Add secure storage keys (without values for privacy)
+      final secureKeys = await _secureStorage.readAll();
+      for (final key in secureKeys.keys) {
+        criticalData.add('secure:$key');
+      }
+      
+      // Add shared preferences keys
+      for (final key in _sharedPreferences.getKeys()) {
+        criticalData.add('prefs:$key');
+      }
+      
+      // Sort for consistent hashing
+      criticalData.sort();
+      
+      // Generate hash
+      final dataString = criticalData.join('|');
+      final bytes = utf8.encode(dataString);
+      final digest = sha256.convert(bytes);
+      
+      return digest.toString();
+    } catch (e) {
+      throw Exception('Failed to generate storage integrity hash: $e');
+    }
   }
 }

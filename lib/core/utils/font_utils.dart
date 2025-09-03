@@ -1,314 +1,257 @@
 import 'package:flutter/material.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 
 import '../constants/app_constants.dart';
 
-/// 字体工具类 - 提供响应式和最小字体保护
+/// Font utility class - Responsive font management
 class FontUtils {
-  /// 获取移动端字体大小
-  static double getMobileFontSize(double fontSize, BuildContext context) {
-    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
-    if (isMobile) {
-      return fontSize < AppConstants.mobileMinFontSize ? AppConstants.mobileMinFontSize : fontSize;
-    }
-    return fontSize;
+  // ===== Breakpoint Checks =====
+  
+  /// Check if current screen is mobile
+  static bool isMobile(BuildContext context) {
+    return MediaQuery.of(context).size.width < AppConstants.breakpointMobile;
+  }
+  
+  /// Check if current screen is tablet
+  static bool isTablet(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    return width >= AppConstants.breakpointMobile && width < AppConstants.breakpointTablet;
+  }
+  
+  /// Check if current screen is desktop
+  static bool isDesktop(BuildContext context) {
+    return MediaQuery.of(context).size.width >= AppConstants.breakpointTablet;
   }
 
-  /// 获取移动端标题字体大小
-  static double getMobileTitleFontSize(double fontSize, BuildContext context) {
-    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
-    if (isMobile) {
-      return fontSize < AppConstants.mobileMinTitleFontSize ? AppConstants.mobileMinTitleFontSize : fontSize;
-    }
-    return fontSize;
+  // ===== Font Size Calculation =====
+  
+  /// Get responsive font size based on screen type
+  static double getFontSize(BuildContext context, {
+    required double mobileSize,
+    required double tabletSize,
+    required double desktopSize,
+  }) {
+    if (isMobile(context)) return mobileSize;
+    if (isTablet(context)) return tabletSize;
+    return desktopSize;
+  }
+  
+  /// Get responsive title font size
+  static double getResponsiveTitleFontSize(BuildContext context) {
+    return getFontSize(
+      context,
+      mobileSize: AppConstants.mobileTitleFontSize,
+      tabletSize: AppConstants.tabletTitleFontSize,
+      desktopSize: AppConstants.desktopTitleFontSize,
+    );
+  }
+  
+  /// Get responsive subtitle font size
+  static double getResponsiveSubtitleFontSize(BuildContext context) {
+    return getResponsiveTitleFontSize(context) * 0.8;
+  }
+  
+  /// Get responsive body font size
+  static double getResponsiveBodyFontSize(BuildContext context) {
+    return getFontSize(
+      context,
+      mobileSize: AppConstants.mobileBodyFontSize,
+      tabletSize: AppConstants.tabletBodyFontSize,
+      desktopSize: AppConstants.desktopBodyFontSize,
+    );
+  }
+  
+  /// Get responsive caption font size
+  static double getResponsiveCaptionFontSize(BuildContext context) {
+    return getFontSize(
+      context,
+      mobileSize: AppConstants.mobileCaptionFontSize,
+      tabletSize: AppConstants.tabletCaptionFontSize,
+      desktopSize: AppConstants.desktopCaptionFontSize,
+    );
+  }
+  
+  /// Get responsive button font size
+  static double getResponsiveButtonFontSize(BuildContext context) {
+    return getResponsiveBodyFontSize(context);
   }
 
-  /// 获取移动端正文字体大小
-  static double getMobileBodyFontSize(double fontSize, BuildContext context) {
-    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
-    if (isMobile) {
-      return fontSize < AppConstants.mobileMinBodyFontSize ? AppConstants.mobileMinBodyFontSize : fontSize;
-    }
-    return fontSize;
-  }
-
-  /// 获取移动端说明文字字体大小
-  static double getMobileCaptionFontSize(double fontSize, BuildContext context) {
-    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
-    if (isMobile) {
-      return fontSize < AppConstants.mobileMinCaptionFontSize ? AppConstants.mobileMinCaptionFontSize : fontSize;
-    }
-    return fontSize;
-  }
-
-  /// 强制应用最小字体大小
-  static double forceMinFontSize(double fontSize) {
-    return fontSize < AppConstants.minFontSize ? AppConstants.minFontSize : fontSize;
-  }
-
-  /// 强制应用最小标题字体大小
-  static double forceMinTitleFontSize(double fontSize) {
-    return fontSize < AppConstants.minTitleFontSize ? AppConstants.minTitleFontSize : fontSize;
-  }
-
-  /// 强制应用最小正文字体大小
-  static double forceMinBodyFontSize(double fontSize) {
-    return fontSize < AppConstants.minBodyFontSize ? AppConstants.minBodyFontSize : fontSize;
-  }
-
-  /// 全局强制字体大小控制
-  static double globalForceFontSize(double fontSize) {
-    return fontSize < AppConstants.mobileMinFontSize ? AppConstants.mobileMinFontSize : fontSize;
-  }
-
-  /// 全局强制标题字体大小控制
-  static double globalForceTitleFontSize(double fontSize) {
-    return fontSize < AppConstants.mobileMinTitleFontSize ? AppConstants.mobileMinTitleFontSize : fontSize;
-  }
-
-  /// 全局强制正文字体大小控制
-  static double globalForceBodyFontSize(double fontSize) {
-    return fontSize < AppConstants.mobileMinBodyFontSize ? AppConstants.mobileMinBodyFontSize : fontSize;
-  }
-
-  /// 创建响应式标题样式
-  static TextStyle forceResponsiveTitleStyle({
-    required double fontSize,
-    FontWeight? fontWeight,
-    Color? color,
-    double? height,
+  // ===== Text Style Creation =====
+  
+  /// Create responsive title text style
+  static TextStyle responsiveTitleStyle({
     required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
   }) {
-    double finalFontSize = fontSize;
-    finalFontSize = getMobileTitleFontSize(fontSize, context);
-    finalFontSize = globalForceTitleFontSize(finalFontSize);
-
     return TextStyle(
-      fontSize: finalFontSize,
-      fontWeight: fontWeight,
+      fontSize: getResponsiveTitleFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w600,
       color: color,
-      height: height,
     );
   }
-
-  /// 创建响应式正文样式
-  static TextStyle forceResponsiveBodyStyle({
-    required double fontSize,
-    FontWeight? fontWeight,
-    Color? color,
-    double? height,
+  
+  /// Create responsive subtitle text style
+  static TextStyle responsiveSubtitleStyle({
     required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
   }) {
-    double finalFontSize = fontSize;
-    finalFontSize = getMobileBodyFontSize(fontSize, context);
-    finalFontSize = globalForceBodyFontSize(finalFontSize);
-
     return TextStyle(
-      fontSize: finalFontSize,
-      fontWeight: fontWeight,
+      fontSize: getResponsiveSubtitleFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w500,
       color: color,
-      height: height,
     );
   }
-
-  /// 创建响应式一般文字样式
-  static TextStyle forceResponsiveTextStyle({
-    required double fontSize,
-    FontWeight? fontWeight,
-    Color? color,
-    double? height,
+  
+  /// Create responsive body text style
+  static TextStyle responsiveBodyStyle({
     required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
   }) {
-    double finalFontSize = fontSize;
-    finalFontSize = getMobileFontSize(fontSize, context);
-    finalFontSize = globalForceFontSize(finalFontSize);
-
     return TextStyle(
-      fontSize: finalFontSize,
-      fontWeight: fontWeight,
+      fontSize: getResponsiveBodyFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w400,
       color: color,
-      height: height,
+    );
+  }
+  
+  /// Create responsive caption text style
+  static TextStyle responsiveCaptionStyle({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveCaptionFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w400,
+      color: color,
+    );
+  }
+  
+  /// Create responsive button text style
+  static TextStyle responsiveButtonStyle({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveButtonFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w500,
+      color: color,
     );
   }
 
-  /// 全局强制响应式标题样式
-  static TextStyle globalForceResponsiveTitleStyle({
-    required double fontSize,
-    FontWeight? fontWeight,
+  // ===== Style Method Shortcuts (for backward compatibility) =====
+  
+  /// Title style method
+  static TextStyle title({
+    required BuildContext context,
     Color? color,
-    double? height,
-    BuildContext? context,
+    FontWeight? fontWeight,
   }) {
-    double finalFontSize = fontSize;
-    if (context != null) {
-      finalFontSize = getMobileTitleFontSize(fontSize, context);
-    }
-    finalFontSize = globalForceTitleFontSize(finalFontSize);
-
-    return TextStyle(
-      fontSize: finalFontSize,
-      fontWeight: fontWeight,
+    return responsiveTitleStyle(
+      context: context,
       color: color,
-      height: height,
+      fontWeight: fontWeight,
+    );
+  }
+  
+  /// Body style method
+  static TextStyle body({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return responsiveBodyStyle(
+      context: context,
+      color: color,
+      fontWeight: fontWeight,
+    );
+  }
+  
+  /// Caption style method
+  static TextStyle caption({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return responsiveCaptionStyle(
+      context: context,
+      color: color,
+      fontWeight: fontWeight,
+    );
+  }
+  
+  /// Subtitle style method
+  static TextStyle subtitle({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return responsiveSubtitleStyle(
+      context: context,
+      color: color,
+      fontWeight: fontWeight,
     );
   }
 
-  /// 全局强制响应式正文样式
-  static TextStyle globalForceResponsiveBodyStyle({
-    required double fontSize,
-    FontWeight? fontWeight,
+  // ===== Widget Creation Methods =====
+  
+  /// Create responsive title text widget
+  static Widget titleText(String text, BuildContext context, {
     Color? color,
-    double? height,
-    BuildContext? context,
-  }) {
-    double finalFontSize = fontSize;
-    if (context != null) {
-      finalFontSize = getMobileBodyFontSize(fontSize, context);
-    }
-    finalFontSize = globalForceBodyFontSize(finalFontSize);
-
-    return TextStyle(
-      fontSize: finalFontSize,
-      fontWeight: fontWeight,
-      color: color,
-      height: height,
-    );
-  }
-
-  /// 全局强制响应式一般文字样式
-  static TextStyle globalForceResponsiveTextStyle({
-    required double fontSize,
-    FontWeight? fontWeight,
-    Color? color,
-    double? height,
-    BuildContext? context,
-  }) {
-    double finalFontSize = fontSize;
-    if (context != null) {
-      finalFontSize = getMobileFontSize(fontSize, context);
-    }
-    finalFontSize = globalForceFontSize(finalFontSize);
-
-    return TextStyle(
-      fontSize: finalFontSize,
-      fontWeight: fontWeight,
-      color: color,
-      height: height,
-    );
-  }
-
-  /// 便捷方法：创建受保护的标题文字
-  static Widget protectedTitle(
-    String text, {
-    required double fontSize,
-    FontWeight? fontWeight,
-    Color? color,
-    double? height,
     TextAlign? textAlign,
     int? maxLines,
-    TextOverflow? overflow,
-    required BuildContext context,
+    FontWeight? fontWeight,
   }) {
     return Text(
       text,
-      style: globalForceResponsiveTitleStyle(
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: color,
-        height: height,
+      style: title(
         context: context,
+        color: color,
+        fontWeight: fontWeight,
       ),
       textAlign: textAlign,
       maxLines: maxLines,
-      overflow: overflow,
     );
   }
-
-  /// 便捷方法：创建受保护的正文文字
-  static Widget protectedBody(
-    String text, {
-    required double fontSize,
-    FontWeight? fontWeight,
+  
+  /// Create responsive body text widget
+  static Widget bodyText(String text, BuildContext context, {
     Color? color,
-    double? height,
     TextAlign? textAlign,
     int? maxLines,
-    TextOverflow? overflow,
-    required BuildContext context,
+    FontWeight? fontWeight,
   }) {
     return Text(
       text,
-      style: globalForceResponsiveBodyStyle(
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: color,
-        height: height,
+      style: body(
         context: context,
+        color: color,
+        fontWeight: fontWeight,
       ),
       textAlign: textAlign,
       maxLines: maxLines,
-      overflow: overflow,
     );
   }
-
-  /// 便捷方法：创建受保护的按钮文字
-  static Widget protectedButton(
-    String text, {
-    required BuildContext context,
-    double fontSize = 14.0,
-    FontWeight? fontWeight,
+  
+  /// Create responsive caption text widget
+  static Widget captionText(String text, BuildContext context, {
     Color? color,
+    TextAlign? textAlign,
+    int? maxLines,
+    FontWeight? fontWeight,
   }) {
     return Text(
       text,
-      style: globalForceResponsiveBodyStyle(
-        fontSize: fontSize,
-        fontWeight: fontWeight,
+      style: caption(
+        context: context,
         color: color,
-        context: context,
+        fontWeight: fontWeight,
       ),
-    );
-  }
-
-  /// 便捷方法：创建受保护的SnackBar
-  static SnackBar protectedSnackBar(
-    String message, {
-    required BuildContext context,
-    double fontSize = 14.0,
-  }) {
-    return SnackBar(
-      content: protectedBody(
-        message,
-        fontSize: fontSize,
-        context: context,
-      ),
-    );
-  }
-
-  /// 便捷方法：创建受保护的对话框标题
-  static Widget protectedDialogTitle(
-    String title, {
-    required BuildContext context,
-    double fontSize = 18.0,
-  }) {
-    return protectedTitle(
-      title,
-      fontSize: fontSize,
-      fontWeight: FontWeight.w600,
-      context: context,
-    );
-  }
-
-  /// 便捷方法：创建受保护的对话框内容
-  static Widget protectedDialogContent(
-    String content, {
-    required BuildContext context,
-    double fontSize = 14.0,
-  }) {
-    return protectedBody(
-      content,
-      fontSize: fontSize,
-      context: context,
+      textAlign: textAlign,
+      maxLines: maxLines,
     );
   }
 }

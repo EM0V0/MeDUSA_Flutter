@@ -8,7 +8,7 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme(
+      colorScheme: const ColorScheme(
         brightness: Brightness.light,
         primary: AppColors.primary,
         onPrimary: AppColors.onPrimary,
@@ -41,78 +41,78 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: AppColors.lightBackground,
 
-      // 全局字体大小控制
-      textTheme: TextTheme(
+      // Global font size control - using new layered font protection system
+      textTheme: const TextTheme(
         displayLarge: TextStyle(
-          fontSize: AppConstants.minTitleFontSize,
+          fontSize: AppConstants.baseMinTitleFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.bold,
         ),
         displayMedium: TextStyle(
-          fontSize: AppConstants.minTitleFontSize,
+          fontSize: AppConstants.baseMinTitleFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.bold,
         ),
         displaySmall: TextStyle(
-          fontSize: AppConstants.minTitleFontSize,
+          fontSize: AppConstants.baseMinTitleFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w600,
         ),
         headlineLarge: TextStyle(
-          fontSize: AppConstants.minTitleFontSize,
+          fontSize: AppConstants.baseMinTitleFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.bold,
         ),
         headlineMedium: TextStyle(
-          fontSize: AppConstants.minTitleFontSize,
+          fontSize: AppConstants.baseMinTitleFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w600,
         ),
         headlineSmall: TextStyle(
-          fontSize: AppConstants.minTitleFontSize,
+          fontSize: AppConstants.baseMinTitleFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w600,
         ),
         titleLarge: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w600,
         ),
         titleMedium: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w500,
         ),
         titleSmall: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w500,
         ),
         bodyLarge: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w400,
         ),
         bodyMedium: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w400,
         ),
         bodySmall: TextStyle(
-          fontSize: AppConstants.minCaptionFontSize,
+          fontSize: AppConstants.baseMinCaptionFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w400,
         ),
         labelLarge: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w500,
         ),
         labelMedium: TextStyle(
-          fontSize: AppConstants.minCaptionFontSize,
+          fontSize: AppConstants.baseMinCaptionFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w500,
         ),
         labelSmall: TextStyle(
-          fontSize: AppConstants.minCaptionFontSize,
+          fontSize: AppConstants.baseMinCaptionFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w400,
         ),
       ),
 
-      // 组件主题
-      appBarTheme: AppBarTheme(
+      // Component themes
+      appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
-          fontSize: AppConstants.minTitleFontSize,
+  titleTextStyle: TextStyle(
+          fontSize: AppConstants.baseMinTitleFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.bold,
           color: AppColors.onPrimary,
         ),
@@ -127,8 +127,8 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.r),
           ),
-          textStyle: TextStyle(
-            fontSize: AppConstants.minBodyFontSize,
+          textStyle: const TextStyle(
+            fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -137,13 +137,13 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
-          side: BorderSide(color: AppColors.primary),
+          side: const BorderSide(color: AppColors.primary),
           padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.r),
           ),
-          textStyle: TextStyle(
-            fontSize: AppConstants.minBodyFontSize,
+          textStyle: const TextStyle(
+            fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -153,8 +153,8 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-          textStyle: TextStyle(
-            fontSize: AppConstants.minBodyFontSize,
+          textStyle: const TextStyle(
+            fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -165,27 +165,27 @@ class AppTheme {
         fillColor: AppColors.lightSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.outline),
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.outline),
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.error),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-        labelStyle: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+  contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        labelStyle: const TextStyle(
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           color: AppColors.onSurfaceVariant,
         ),
-        hintStyle: TextStyle(
-          fontSize: AppConstants.minBodyFontSize,
+        hintStyle: const TextStyle(
+          fontSize: AppConstants.baseMinBodyFontSize,  // Fixed: use new constant name
           color: AppColors.onSurfaceVariant,
         ),
       ),
@@ -198,17 +198,17 @@ class AppTheme {
         ),
       ),
 
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.lightSurface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.onSurfaceVariant,
         type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: TextStyle(
-          fontSize: AppConstants.minCaptionFontSize,
+  selectedLabelStyle: TextStyle(
+          fontSize: AppConstants.baseMinCaptionFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: TextStyle(
-          fontSize: AppConstants.minCaptionFontSize,
+  unselectedLabelStyle: TextStyle(
+          fontSize: AppConstants.baseMinCaptionFontSize,  // Fixed: use new constant name
           fontWeight: FontWeight.w500,
         ),
       ),

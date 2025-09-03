@@ -5,31 +5,31 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
 
-/// 加密服务抽象类
+/// Encryption service abstract class
 abstract class EncryptionService {
-  /// 生成随机AES密钥
+  /// Generate random AES key
   Future<String> generateAESKey();
   
-  /// 加密JSON数据
+  /// Encrypt JSON data
   Future<Map<String, String>> encryptJson(Map<String, dynamic> data, String base64Key);
   
-  /// 解密JSON数据
+  /// Decrypt JSON data
   Future<Map<String, dynamic>> decryptJson(Map<String, String> encryptedData, String base64Key);
   
-  /// 生成随机字符串
+  /// Generate random string
   String generateRandomString(int length);
   
-  /// 哈希密码
+  /// Hash password
   String hashPassword(String password, String salt);
   
-  /// 验证密码
+  /// Verify password
   bool verifyPassword(String password, String salt, String hashedPassword);
   
-  /// 生成盐值
+  /// Generate salt
   String generateSalt();
 }
 
-/// 加密服务实现
+/// Encryption service implementation
 class EncryptionServiceImpl implements EncryptionService {
   final AesGcm _aesGcm = AesGcm.with256bits();
   
@@ -43,25 +43,25 @@ class EncryptionServiceImpl implements EncryptionService {
   @override
   Future<Map<String, String>> encryptJson(Map<String, dynamic> data, String base64Key) async {
     try {
-      // 将数据转换为JSON字符串
+      // Convert data to JSON string
       final jsonString = jsonEncode(data);
       final plaintext = utf8.encode(jsonString);
       
-      // 从base64密钥创建SecretKey
+      // Create SecretKey from base64 key
       final keyBytes = base64Decode(base64Key);
       final secretKey = await _aesGcm.newSecretKeyFromBytes(keyBytes);
       
-      // 生成随机nonce (初始化向量)
+      // Generate random nonce (initialization vector)
       final nonce = _aesGcm.newNonce();
       
-      // 加密数据
+      // Encrypt data
       final secretBox = await _aesGcm.encrypt(
         plaintext,
         secretKey: secretKey,
         nonce: nonce,
       );
       
-      // 返回加密结果
+      // Return encryption result
       return {
         'iv': base64Encode(nonce),
         'ciphertext': base64Encode(secretBox.cipherText),
@@ -75,34 +75,34 @@ class EncryptionServiceImpl implements EncryptionService {
   @override
   Future<Map<String, dynamic>> decryptJson(Map<String, String> encryptedData, String base64Key) async {
     try {
-      // 验证必需字段
+      // Validate required fields
       final iv = encryptedData['iv'];
       final ciphertext = encryptedData['ciphertext'];
       final tag = encryptedData['tag'];
       
       if (iv == null || ciphertext == null || tag == null) {
-        throw EncryptionException('Missing required encryption fields');
+        throw const EncryptionException('Missing required encryption fields');
       }
       
-      // 解码数据
+      // Decode data
       final nonceBytes = base64Decode(iv);
       final ciphertextBytes = base64Decode(ciphertext);
       final tagBytes = base64Decode(tag);
       final keyBytes = base64Decode(base64Key);
       
-      // 创建SecretKey和SecretBox
+      // Create SecretKey and SecretBox
       final secretKey = await _aesGcm.newSecretKeyFromBytes(keyBytes);
       final nonce = List<int>.from(nonceBytes);
       final mac = Mac(tagBytes);
       final secretBox = SecretBox(ciphertextBytes, nonce: nonce, mac: mac);
       
-      // 解密数据
+      // Decrypt data
       final decryptedBytes = await _aesGcm.decrypt(
         secretBox,
         secretKey: secretKey,
       );
       
-      // 转换回JSON
+      // Convert back to JSON
       final jsonString = utf8.decode(decryptedBytes);
       return jsonDecode(jsonString) as Map<String, dynamic>;
     } catch (e) {
@@ -138,7 +138,7 @@ class EncryptionServiceImpl implements EncryptionService {
   }
 }
 
-/// 加密异常类
+/// Encryption exception class
 class EncryptionException implements Exception {
   final String message;
   
@@ -148,20 +148,20 @@ class EncryptionException implements Exception {
   String toString() => 'EncryptionException: $message';
 }
 
-/// 加密工具类
+/// Encryption utility class
 class EncryptionUtils {
-  /// 生成安全的随机字节
+  /// Generate secure random bytes
   static Uint8List generateRandomBytes(int length) {
     final random = Random.secure();
     return Uint8List.fromList(List.generate(length, (_) => random.nextInt(256)));
   }
   
-  /// 将字节数组转换为十六进制字符串
+  /// Convert byte array to hexadecimal string
   static String bytesToHex(List<int> bytes) {
     return bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
   }
   
-  /// 将十六进制字符串转换为字节数组
+  /// Convert hexadecimal string to byte array
   static List<int> hexToBytes(String hex) {
     final result = <int>[];
     for (int i = 0; i < hex.length; i += 2) {
@@ -170,7 +170,7 @@ class EncryptionUtils {
     return result;
   }
   
-  /// 安全比较两个字符串（防止时序攻击）
+  /// Secure string comparison (prevent timing attacks)
   static bool secureStringCompare(String a, String b) {
     if (a.length != b.length) {
       return false;
@@ -184,7 +184,7 @@ class EncryptionUtils {
     return result == 0;
   }
   
-  /// 验证Base64字符串格式
+  /// Validate Base64 string format
   static bool isValidBase64(String value) {
     try {
       base64Decode(value);
@@ -194,14 +194,14 @@ class EncryptionUtils {
     }
   }
   
-  /// 清理敏感字符串内存
+  /// Clear sensitive string memory
   static void clearSensitiveString(StringBuffer buffer) {
-    // 清除缓冲区内容
+    // Clear buffer contents
     buffer.clear();
   }
 }
 
-/// 加密数据模型
+/// Encrypted data model
 class EncryptedPayload {
   final String iv;
   final String ciphertext;

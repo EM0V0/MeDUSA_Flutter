@@ -56,17 +56,16 @@ class _RegisterPageState extends State<RegisterPage> {
                     children: [
                       Icon(
                         Icons.medical_services_rounded,
-                        size: IconUtils.responsiveIconSize(80.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.xxlarge, context),
                         color: AppColors.primary,
                       ),
                       SizedBox(height: 16.h),
                       Text(
                         AppConstants.appName,
-                        style: FontUtils.forceResponsiveTitleStyle(
-                          fontSize: 32.sp,
+                        style: FontUtils.title(
+                          context: context,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
-                          context: context,
                         ),
                       ),
                       SizedBox(height: 8.h),
@@ -90,7 +89,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       hintText: 'Enter your full name',
                       prefixIcon: Icon(
                         Icons.person_outlined,
-                        size: IconUtils.responsiveIconSize(24.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                       ),
                     ),
                     validator: (value) {
@@ -115,7 +114,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       hintText: 'Enter your email address',
                       prefixIcon: Icon(
                         Icons.email_outlined,
-                        size: IconUtils.responsiveIconSize(24.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                       ),
                     ),
                     validator: (value) {
@@ -138,7 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       labelText: 'Role',
                       prefixIcon: Icon(
                         Icons.work_outlined,
-                        size: IconUtils.responsiveIconSize(24.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                       ),
                     ),
                     items: const [
@@ -164,12 +163,12 @@ class _RegisterPageState extends State<RegisterPage> {
                       hintText: 'Enter your password',
                       prefixIcon: Icon(
                         Icons.lock_outlined,
-                        size: IconUtils.responsiveIconSize(24.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                          size: IconUtils.responsiveIconSize(20.w, context),
+                          size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                         ),
                         onPressed: () {
                           setState(() {
@@ -200,12 +199,12 @@ class _RegisterPageState extends State<RegisterPage> {
                       hintText: 'Confirm your password',
                       prefixIcon: Icon(
                         Icons.lock_outlined,
-                        size: IconUtils.responsiveIconSize(24.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isConfirmPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                          size: IconUtils.responsiveIconSize(20.w, context),
+                          size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                         ),
                         onPressed: () {
                           setState(() {

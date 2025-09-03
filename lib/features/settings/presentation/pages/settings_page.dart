@@ -6,7 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/font_utils.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -96,8 +96,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       children: [
         Text(
           'Settings',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: isMobile ? 36.sp : 40.sp,
+          style: FontUtils.title(
             fontWeight: FontWeight.bold,
             color: AppColors.lightOnSurface,
             context: context,
@@ -106,8 +105,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         SizedBox(height: 8.h),
         Text(
           'Manage your account, notifications, and system preferences',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 18.sp,
+          style: FontUtils.body(
             color: AppColors.lightOnSurfaceVariant,
             context: context,
           ),
@@ -123,7 +121,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -136,13 +134,11 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.lightOnSurfaceVariant,
         indicatorColor: AppColors.primary,
-        labelStyle: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 16.sp : 14.sp,
+        labelStyle: FontUtils.body(
           fontWeight: FontWeight.w600,
           context: context,
         ),
-        unselectedLabelStyle: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 16.sp : 14.sp,
+        unselectedLabelStyle: FontUtils.body(
           fontWeight: FontWeight.w500,
           context: context,
         ),
@@ -169,7 +165,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -180,8 +176,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           children: [
             Text(
               'Notification Preferences',
-              style: FontUtils.globalForceResponsiveTitleStyle(
-                fontSize: isMobile ? 20.sp : 18.sp,
+              style: FontUtils.title(
                 fontWeight: FontWeight.w600,
                 color: AppColors.lightOnSurface,
                 context: context,
@@ -235,12 +230,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                   borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
-              child: FontUtils.protectedButton(
-                'Save Notification Settings',
-                context: context,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-              ),
+              child: FontUtils.bodyText('Save Notification Settings', context),
             ),
           ],
         ),
@@ -257,7 +247,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -268,8 +258,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           children: [
             Text(
               'Security Settings',
-              style: FontUtils.globalForceResponsiveTitleStyle(
-                fontSize: isMobile ? 20.sp : 18.sp,
+              style: FontUtils.title(
                 fontWeight: FontWeight.w600,
                 color: AppColors.lightOnSurface,
                 context: context,
@@ -318,15 +307,14 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: BorderSide(color: AppColors.primary),
+                    side: const BorderSide(color: AppColors.primary),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                   ),
                   child: Text(
                     'Change Password',
-                    style: FontUtils.globalForceResponsiveBodyStyle(
-                      fontSize: isMobile ? 18.sp : 16.sp,
+                    style: FontUtils.body(
                       fontWeight: FontWeight.w600,
                       context: context,
                     ),
@@ -349,7 +337,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -360,8 +348,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           children: [
             Text(
               'System Configuration',
-              style: FontUtils.globalForceResponsiveTitleStyle(
-                fontSize: isMobile ? 20.sp : 18.sp,
+              style: FontUtils.title(
                 fontWeight: FontWeight.w600,
                 color: AppColors.lightOnSurface,
                 context: context,
@@ -370,8 +357,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             SizedBox(height: 8.h),
             Text(
               'Administrative settings (requires admin privileges)',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: isMobile ? 14.sp : 12.sp,
+              style: FontUtils.body(
                 color: AppColors.lightOnSurfaceVariant,
                 context: context,
               ),
@@ -438,7 +424,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary),
+                      side: const BorderSide(color: AppColors.primary),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r),
                       ),
@@ -446,8 +432,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                     ),
                     child: Text(
                       'Export Data',
-                      style: FontUtils.globalForceResponsiveBodyStyle(
-                        fontSize: isMobile ? 16.sp : 14.sp,
+                      style: FontUtils.body(
                         fontWeight: FontWeight.w600,
                         context: context,
                       ),
@@ -470,8 +455,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
                     ),
                     child: Text(
                       'Save Settings',
-                      style: FontUtils.globalForceResponsiveBodyStyle(
-                        fontSize: isMobile ? 16.sp : 14.sp,
+                      style: FontUtils.body(
                         fontWeight: FontWeight.w600,
                         context: context,
                       ),
@@ -486,55 +470,12 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, bool isMobile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
-            fontWeight: FontWeight.w500,
-            color: AppColors.lightOnSurface,
-            context: context,
-          ),
-        ),
-        SizedBox(height: 8.h),
-        TextField(
-          controller: controller,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
-            color: AppColors.lightOnSurface,
-            context: context,
-          ),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
-            ),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 12.w,
-              vertical: isMobile ? 16.h : 12.h,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildSectionHeader(String title, bool isMobile) {
     return Text(
       title,
-      style: FontUtils.globalForceResponsiveTitleStyle(
-        fontSize: isMobile ? 18.sp : 16.sp,
+      style: FontUtils.title(
         fontWeight: FontWeight.w600,
         color: AppColors.primary,
         context: context,
@@ -551,8 +492,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
           Expanded(
             child: Text(
               title,
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: isMobile ? 16.sp : 14.sp,
+              style: FontUtils.body(
                 color: AppColors.lightOnSurface,
                 context: context,
               ),
@@ -580,8 +520,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       children: [
         Text(
           label,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
+          style: FontUtils.body(
             fontWeight: FontWeight.w500,
             color: AppColors.lightOnSurface,
             context: context,
@@ -590,23 +529,22 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         SizedBox(height: 8.h),
         DropdownButtonFormField<String>(
           value: value,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
+          style: FontUtils.body(
             color: AppColors.lightOnSurface,
             context: context,
           ),
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: 12.w,
@@ -639,8 +577,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       children: [
         Text(
           label,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
+          style: FontUtils.body(
             fontWeight: FontWeight.w500,
             color: AppColors.lightOnSurface,
             context: context,
@@ -650,8 +587,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
         TextFormField(
           initialValue: value.toString(),
           keyboardType: TextInputType.number,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
+          style: FontUtils.body(
             color: AppColors.lightOnSurface,
             context: context,
           ),
@@ -659,15 +595,15 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             suffixText: suffix,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: 12.w,
@@ -688,18 +624,6 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
   }
 
   // Action methods
-  void _saveProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(
-        'Profile updated successfully',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
-          context: context,
-        ),
-      )),
-    );
-  }
 
   void _changePassword() {
     showDialog(
@@ -707,15 +631,13 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       builder: (context) => AlertDialog(
         title: Text(
           'Change Password',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: 18.sp,
+          style: FontUtils.title(
             context: context,
           ),
         ),
         content: Text(
           'Password change feature will be implemented soon.',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: 14.sp,
+          style: FontUtils.body(
             context: context,
           ),
         ),
@@ -724,8 +646,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
             onPressed: () => Navigator.pop(context),
             child: Text(
               'OK',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
+              style: FontUtils.body(
                 context: context,
               ),
             ),
@@ -740,8 +661,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       SnackBar(
           content: Text(
         'System settings saved successfully',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
+        style: FontUtils.body(
           context: context,
         ),
       )),
@@ -753,8 +673,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       SnackBar(
           content: Text(
         'Data export initiated',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
+        style: FontUtils.body(
           context: context,
         ),
       )),
@@ -766,8 +685,7 @@ class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMix
       SnackBar(
           content: Text(
         'Notification settings saved successfully',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
+        style: FontUtils.body(
           context: context,
         ),
       )),

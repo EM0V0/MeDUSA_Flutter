@@ -7,7 +7,7 @@ import '../../../../core/utils/font_utils.dart';
 import '../../../../core/utils/icon_utils.dart';
 
 class PatientsPage extends StatefulWidget {
-  const PatientsPage({Key? key}) : super(key: key);
+  const PatientsPage({super.key});
 
   @override
   State<PatientsPage> createState() => _PatientsPageState();
@@ -144,14 +144,16 @@ class _PatientsPageState extends State<PatientsPage> {
         foregroundColor: AppColors.lightSurface,
         icon: Icon(
           Icons.add,
-          size: IconUtils.responsiveIconSize(isMobile ? 28.w : 24.w, context),
+          size: IconUtils.getResponsiveIconSize(
+            isMobile ? IconSizeType.large : IconSizeType.medium, 
+            context
+          ),
         ),
         label: Text(
           'Add Patient',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 18.sp : 14.sp, // 移动端增大字体
-            fontWeight: FontWeight.w600,
+          style: FontUtils.body(
             context: context,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -167,20 +169,18 @@ class _PatientsPageState extends State<PatientsPage> {
           children: [
             Text(
               'Patient Management',
-              style: FontUtils.globalForceResponsiveTitleStyle(
-                fontSize: isMobile ? 36.sp : 40.sp,
+              style: FontUtils.title(
+                context: context,
                 fontWeight: FontWeight.bold,
                 color: AppColors.lightOnSurface,
-                context: context,
               ),
             ),
             SizedBox(height: 8.h),
             Text(
               '${filteredPatients.length} patients • ${filteredPatients.where((p) => p.status == PatientStatus.critical).length} critical',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: isMobile ? 16.sp : 18.sp,
-                color: AppColors.lightOnSurfaceVariant,
+              style: FontUtils.body(
                 context: context,
+                color: AppColors.lightOnSurfaceVariant,
               ),
             ),
           ],
@@ -190,10 +190,9 @@ class _PatientsPageState extends State<PatientsPage> {
             onPressed: () => _showAddPatientDialog(context),
             icon: const Icon(Icons.add),
             label: Text('Add Patient',
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
+                style: FontUtils.body(
                   context: context,
+                  fontWeight: FontWeight.w600,
                 )),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -213,7 +212,7 @@ class _PatientsPageState extends State<PatientsPage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -224,11 +223,10 @@ class _PatientsPageState extends State<PatientsPage> {
         children: [
           Text(
             'Search & Filter',
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 18.sp : 16.sp,
+            style: FontUtils.body(
+              context: context,
               fontWeight: FontWeight.w600,
               color: AppColors.lightOnSurface,
-              context: context,
             ),
           ),
           SizedBox(height: 16.h),
@@ -264,38 +262,39 @@ class _PatientsPageState extends State<PatientsPage> {
           currentPage = 1; // Reset to first page when searching
         });
       },
-      style: FontUtils.globalForceResponsiveBodyStyle(
-        fontSize: isMobile ? 18.sp : 14.sp, // 移动端增大字体
-        color: AppColors.lightOnSurface,
+      style: FontUtils.body(
         context: context,
+        color: AppColors.lightOnSurface,
       ),
       decoration: InputDecoration(
         hintText: 'Search by name, ID, or condition...',
-        hintStyle: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 18.sp : 14.sp, // 移动端增大字体
-          color: AppColors.lightOnSurfaceVariant,
+        hintStyle: FontUtils.body(
           context: context,
+          color: AppColors.lightOnSurfaceVariant,
         ),
         prefixIcon: Icon(
           Icons.search,
-          size: IconUtils.responsiveIconSize(isMobile ? 28.w : 20.w, context),
+          size: IconUtils.getResponsiveIconSize(
+            isMobile ? IconSizeType.large : IconSizeType.medium, 
+            context
+          ),
           color: AppColors.lightOnSurfaceVariant,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 12.w,
-          vertical: isMobile ? 20.h : 12.h, // 移动端增大内边距
+          vertical: isMobile ? 20.h : 12.h, // Increase padding for mobile devices
         ),
       ),
     );
@@ -304,33 +303,31 @@ class _PatientsPageState extends State<PatientsPage> {
   Widget _buildStatusFilter(bool isMobile) {
     return DropdownButtonFormField<String>(
       value: selectedStatus.isEmpty ? null : selectedStatus,
-      style: FontUtils.globalForceResponsiveBodyStyle(
-        fontSize: isMobile ? 18.sp : 14.sp, // 移动端增大字体
-        color: AppColors.lightOnSurface,
+      style: FontUtils.body(
         context: context,
+        color: AppColors.lightOnSurface,
       ),
       decoration: InputDecoration(
         labelText: 'Status',
-        labelStyle: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 18.sp : 14.sp, // 移动端增大字体
-          color: AppColors.lightOnSurfaceVariant,
+        labelStyle: FontUtils.body(
           context: context,
+          color: AppColors.lightOnSurfaceVariant,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 12.w,
-          vertical: isMobile ? 20.h : 12.h, // 移动端增大内边距
+          vertical: isMobile ? 20.h : 12.h, // Increase padding for mobile devices
         ),
       ),
       items: ['', 'stable', 'moderate', 'critical'].map((status) {
@@ -338,8 +335,7 @@ class _PatientsPageState extends State<PatientsPage> {
           value: status,
           child: Text(
             status.isEmpty ? 'All Status' : status.toUpperCase(),
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 18.sp : 14.sp, // 移动端增大字体
+            style: FontUtils.body(
               context: context,
             ),
           ),
@@ -364,7 +360,7 @@ class _PatientsPageState extends State<PatientsPage> {
         });
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.lightOnSurfaceVariant.withOpacity(0.1),
+        backgroundColor: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.1),
         foregroundColor: AppColors.lightOnSurface,
         elevation: 0,
         padding: EdgeInsets.symmetric(
@@ -374,10 +370,9 @@ class _PatientsPageState extends State<PatientsPage> {
       ),
       child: Text(
         'Clear',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 16.sp : 14.sp,
-          fontWeight: FontWeight.w500,
+        style: FontUtils.body(
           context: context,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -389,35 +384,34 @@ class _PatientsPageState extends State<PatientsPage> {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
+        color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8.r),
       ),
       child: Row(
         children: [
           Text(
             '${selectedPatients.length} selected',
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 16.sp : 14.sp,
+            style: FontUtils.body(
+              context: context,
               fontWeight: FontWeight.w600,
               color: AppColors.primary,
-              context: context,
             ),
           ),
           const Spacer(),
           if (isMobile && selectedPatients.isNotEmpty) ...[
             IconButton(
               onPressed: _exportSelectedPatients,
-              icon: Icon(Icons.download_outlined, color: AppColors.primary),
+              icon: const Icon(Icons.download_outlined, color: AppColors.primary),
               tooltip: 'Export Selected',
             ),
             IconButton(
               onPressed: _sendMessageToSelected,
-              icon: Icon(Icons.message_outlined, color: AppColors.primary),
+              icon: const Icon(Icons.message_outlined, color: AppColors.primary),
               tooltip: 'Send Message',
             ),
             IconButton(
               onPressed: _deleteSelectedPatients,
-              icon: Icon(Icons.delete_outline, color: AppColors.error),
+              icon: const Icon(Icons.delete_outline, color: AppColors.error),
               tooltip: 'Delete Selected',
             ),
           ] else ...[
@@ -425,10 +419,9 @@ class _PatientsPageState extends State<PatientsPage> {
               onPressed: _exportSelectedPatients,
               icon: const Icon(Icons.download_outlined),
               label: Text('Export',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   )),
             ),
             SizedBox(width: 8.w),
@@ -436,21 +429,19 @@ class _PatientsPageState extends State<PatientsPage> {
               onPressed: _sendMessageToSelected,
               icon: const Icon(Icons.message_outlined),
               label: Text('Message',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   )),
             ),
             SizedBox(width: 8.w),
             TextButton.icon(
               onPressed: _deleteSelectedPatients,
-              icon: Icon(Icons.delete_outline, color: AppColors.error),
+              icon: const Icon(Icons.delete_outline, color: AppColors.error),
               label: Text('Delete',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: 16.sp,
-                    color: AppColors.error,
+                  style: FontUtils.body(
                     context: context,
+                    color: AppColors.error,
                   )),
             ),
           ],
@@ -472,7 +463,7 @@ class _PatientsPageState extends State<PatientsPage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -528,31 +519,27 @@ class _PatientsPageState extends State<PatientsPage> {
           Expanded(
               flex: 2,
               child: Text('Patient',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14.sp,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   ))),
           Expanded(
               child: Text('Condition',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14.sp,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   ))),
           Expanded(
               child: Text('Status',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14.sp,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   ))),
           Expanded(
               child: Text('Last Reading',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14.sp,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   ))),
           SizedBox(width: 60.w), // Actions column
         ],
@@ -565,7 +552,7 @@ class _PatientsPageState extends State<PatientsPage> {
     return Container(
       margin: EdgeInsets.only(bottom: 8.h),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.white,
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(
           color: isSelected ? AppColors.primary : Colors.grey.shade200,
@@ -603,18 +590,17 @@ class _PatientsPageState extends State<PatientsPage> {
                       children: [
                         Icon(
                           Icons.person,
-                          size: IconUtils.responsiveIconSize(isMobile ? 20.w : 18.w, context),
+                          size: IconUtils.getResponsiveIconSize(IconSizeType.small, context),
                           color: AppColors.lightOnSurfaceVariant,
                         ),
                         SizedBox(width: 8.w),
                         Expanded(
                           child: Text(
                             patient.name,
-                            style: FontUtils.globalForceResponsiveBodyStyle(
-                              fontSize: isMobile ? 16.sp : 16.sp,
+                            style: FontUtils.body(
+                              context: context,
                               fontWeight: FontWeight.w600,
                               color: AppColors.lightOnSurface,
-                              context: context,
                             ),
                           ),
                         ),
@@ -623,10 +609,9 @@ class _PatientsPageState extends State<PatientsPage> {
                     SizedBox(height: 4.h),
                     Text(
                       'ID: ${patient.id}',
-                      style: FontUtils.globalForceResponsiveBodyStyle(
-                        fontSize: isMobile ? 12.sp : 12.sp,
-                        color: AppColors.lightOnSurfaceVariant,
+                      style: FontUtils.caption(
                         context: context,
+                        color: AppColors.lightOnSurfaceVariant,
                       ),
                     ),
                   ],
@@ -638,10 +623,9 @@ class _PatientsPageState extends State<PatientsPage> {
             Expanded(
               child: Text(
                 patient.condition,
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: isMobile ? 14.sp : 14.sp,
-                  color: AppColors.lightOnSurface,
+                style: FontUtils.body(
                   context: context,
+                  color: AppColors.lightOnSurface,
                 ),
               ),
             ),
@@ -655,10 +639,9 @@ class _PatientsPageState extends State<PatientsPage> {
             Expanded(
               child: Text(
                 _formatLastReading(patient.lastReading),
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: isMobile ? 12.sp : 12.sp,
-                  color: AppColors.lightOnSurfaceVariant,
+                style: FontUtils.caption(
                   context: context,
+                  color: AppColors.lightOnSurfaceVariant,
                 ),
               ),
             ),
@@ -668,40 +651,36 @@ class _PatientsPageState extends State<PatientsPage> {
             PopupMenuButton<String>(
               icon: Icon(
                 Icons.more_vert,
-                size: IconUtils.responsiveIconSize(20.w, context),
+                size: IconUtils.getResponsiveIconSize(IconSizeType.small, context),
               ),
               onSelected: (value) => _handlePatientAction(value, patient),
               itemBuilder: (context) => [
                 PopupMenuItem(
                   value: 'view',
-                  child: FontUtils.protectedButton(
+                  child: Text(
                     'View Details',
-                    context: context,
-                    fontSize: 14.sp,
+                    style: FontUtils.body(context: context),
                   ),
                 ),
                 PopupMenuItem(
                   value: 'edit',
-                  child: FontUtils.protectedButton(
+                  child: Text(
                     'Edit Patient',
-                    context: context,
-                    fontSize: 14.sp,
+                    style: FontUtils.body(context: context),
                   ),
                 ),
                 PopupMenuItem(
                   value: 'message',
-                  child: FontUtils.protectedButton(
+                  child: Text(
                     'Send Message',
-                    context: context,
-                    fontSize: 14.sp,
+                    style: FontUtils.body(context: context),
                   ),
                 ),
                 PopupMenuItem(
                   value: 'delete',
-                  child: FontUtils.protectedButton(
+                  child: Text(
                     'Delete Patient',
-                    context: context,
-                    fontSize: 14.sp,
+                    style: FontUtils.body(context: context),
                   ),
                 ),
               ],
@@ -719,17 +698,17 @@ class _PatientsPageState extends State<PatientsPage> {
 
     switch (status) {
       case PatientStatus.stable:
-        backgroundColor = AppColors.success.withOpacity(0.1);
+        backgroundColor = AppColors.success.withValues(alpha: 0.1);
         textColor = AppColors.success;
         label = 'Stable';
         break;
       case PatientStatus.moderate:
-        backgroundColor = AppColors.warning.withOpacity(0.1);
+        backgroundColor = AppColors.warning.withValues(alpha: 0.1);
         textColor = AppColors.warning;
         label = 'Moderate';
         break;
       case PatientStatus.critical:
-        backgroundColor = AppColors.error.withOpacity(0.1);
+        backgroundColor = AppColors.error.withValues(alpha: 0.1);
         textColor = AppColors.error;
         label = 'Critical';
         break;
@@ -746,11 +725,10 @@ class _PatientsPageState extends State<PatientsPage> {
       ),
       child: Text(
         label,
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: isMobile ? 12.sp : 10.sp,
+        style: FontUtils.caption(
+          context: context,
           fontWeight: FontWeight.w600,
           color: textColor,
-          context: context,
         ),
       ),
     );
@@ -763,26 +741,27 @@ class _PatientsPageState extends State<PatientsPage> {
         children: [
           Icon(
             Icons.people_outline,
-            size: IconUtils.responsiveIconSize(isMobile ? 80.w : 60.w, context),
+            size: IconUtils.getResponsiveIconSize(
+              isMobile ? IconSizeType.xxlarge : IconSizeType.xlarge, 
+              context
+            ),
             color: AppColors.lightOnSurfaceVariant,
           ),
           SizedBox(height: 16.h),
           Text(
             'No patients found',
-            style: FontUtils.globalForceResponsiveTitleStyle(
-              fontSize: isMobile ? 20.sp : 18.sp,
+            style: FontUtils.title(
+              context: context,
               fontWeight: FontWeight.w600,
               color: AppColors.lightOnSurface,
-              context: context,
             ),
           ),
           SizedBox(height: 8.h),
           Text(
             'Try adjusting your search or add a new patient',
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 16.sp : 14.sp,
-              color: AppColors.lightOnSurfaceVariant,
+            style: FontUtils.body(
               context: context,
+              color: AppColors.lightOnSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -807,7 +786,7 @@ class _PatientsPageState extends State<PatientsPage> {
               : null,
           icon: Icon(
             Icons.chevron_left,
-            size: IconUtils.responsiveIconSize(24.w, context),
+            size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
           ),
         ),
         ...List.generate(totalPages, (index) {
@@ -826,8 +805,7 @@ class _PatientsPageState extends State<PatientsPage> {
               ),
               child: Text(
                 '$page',
-                style: FontUtils.globalForceResponsiveBodyStyle(
-                  fontSize: 14.sp,
+                style: FontUtils.body(
                   context: context,
                 ),
               ),
@@ -844,7 +822,7 @@ class _PatientsPageState extends State<PatientsPage> {
               : null,
           icon: Icon(
             Icons.chevron_right,
-            size: IconUtils.responsiveIconSize(24.w, context),
+            size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
           ),
         ),
       ],
@@ -869,30 +847,12 @@ class _PatientsPageState extends State<PatientsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Add New Patient',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: 18.sp,
-            context: context,
-          ),
-        ),
-        content: Text(
-          'Add patient feature will be implemented soon.',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: 14.sp,
-            context: context,
-          ),
-        ),
+        title: FontUtils.titleText('Add New Patient', context),
+        content: FontUtils.bodyText('Add patient feature will be implemented soon.', context),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
-                context: context,
-              ),
-            ),
+            child: FontUtils.bodyText('OK', context),
           ),
         ],
       ),
@@ -909,20 +869,8 @@ class _PatientsPageState extends State<PatientsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Delete Patient',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: 18.sp,
-            context: context,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete ${patient.name}?',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: 14.sp,
-            context: context,
-          ),
-        ),
+        title: FontUtils.titleText('Delete Patient', context),
+        content: FontUtils.bodyText('Are you sure you want to delete ${patient.name}?', context),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -933,22 +881,11 @@ class _PatientsPageState extends State<PatientsPage> {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                    content: Text(
-                  'Deleted patient: ${patient.name}',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: 14.sp,
-                    context: context,
-                  ),
-                )),
+                  content: FontUtils.bodyText('Deleted patient: ${patient.name}', context),
+                ),
               );
             },
-            child: Text(
-              'Delete',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
-                context: context,
-              ),
-            ),
+            child: FontUtils.bodyText('Delete', context),
           ),
         ],
       ),
@@ -973,20 +910,8 @@ class _PatientsPageState extends State<PatientsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Delete Patients',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: 18.sp,
-            context: context,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete ${selectedPatients.length} patients?',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: 14.sp,
-            context: context,
-          ),
-        ),
+        title: FontUtils.titleText('Delete Patients', context),
+        content: FontUtils.bodyText('Are you sure you want to delete ${selectedPatients.length} patients?', context),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1000,13 +925,7 @@ class _PatientsPageState extends State<PatientsPage> {
               setState(() {});
               _showSnackBar('Selected patients deleted successfully');
             },
-            child: Text(
-              'Delete',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
-                context: context,
-              ),
-            ),
+            child: FontUtils.bodyText('Delete', context),
           ),
         ],
       ),
@@ -1016,13 +935,8 @@ class _PatientsPageState extends State<PatientsPage> {
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(
-        message,
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
-          context: context,
-        ),
-      )),
+        content: FontUtils.bodyText(message, context),
+      ),
     );
   }
 
@@ -1031,10 +945,7 @@ class _PatientsPageState extends State<PatientsPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: FontUtils.protectedDialogTitle(
-            'Patient Details',
-            context: context,
-          ),
+          title: FontUtils.titleText('Patient Details', context),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1057,10 +968,9 @@ class _PatientsPageState extends State<PatientsPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: FontUtils.protectedButton(
+              child: Text(
                 'Close',
-                context: context,
-                fontSize: 14.sp,
+                style: FontUtils.body(context: context),
               ),
             ),
             ElevatedButton(
@@ -1068,11 +978,12 @@ class _PatientsPageState extends State<PatientsPage> {
                 Navigator.of(context).pop();
                 _editPatient(patient);
               },
-              child: FontUtils.protectedButton(
+              child: Text(
                 'Edit',
-                context: context,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
+                style: FontUtils.body(
+                  context: context,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -1089,18 +1000,20 @@ class _PatientsPageState extends State<PatientsPage> {
         children: [
           SizedBox(
             width: 80.w,
-            child: FontUtils.protectedBody(
+            child: Text(
               '$label:',
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-              context: context,
+              style: FontUtils.body(
+                context: context,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           Expanded(
-            child: FontUtils.protectedBody(
+            child: Text(
               value,
-              fontSize: 14.sp,
-              context: context,
+              style: FontUtils.body(
+                context: context,
+              ),
             ),
           ),
         ],

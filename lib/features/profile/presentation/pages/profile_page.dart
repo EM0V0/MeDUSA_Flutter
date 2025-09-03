@@ -7,7 +7,7 @@ import '../../../../core/utils/font_utils.dart';
 import '../../../../core/utils/icon_utils.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -74,20 +74,18 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           'Profile',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: isMobile ? 36.sp : 40.sp,
+          style: FontUtils.title(
+            context: context,
             fontWeight: FontWeight.bold,
             color: AppColors.lightOnSurface,
-            context: context,
           ),
         ),
         SizedBox(height: 8.h),
         Text(
           'Manage your personal and professional information',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 18.sp,
-            color: AppColors.lightOnSurfaceVariant,
+          style: FontUtils.body(
             context: context,
+            color: AppColors.lightOnSurfaceVariant,
           ),
         ),
       ],
@@ -102,7 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -113,11 +111,10 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Text(
             'Profile Information',
-            style: FontUtils.globalForceResponsiveTitleStyle(
-              fontSize: isMobile ? 20.sp : 18.sp,
+            style: FontUtils.title(
+              context: context,
               fontWeight: FontWeight.w600,
               color: AppColors.lightOnSurface,
-              context: context,
             ),
           ),
           SizedBox(height: 24.h),
@@ -128,14 +125,13 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 CircleAvatar(
                   radius: isMobile ? 50.w : 40.w,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                   child: Text(
                     'SJ',
-                    style: FontUtils.globalForceResponsiveTitleStyle(
-                      fontSize: isMobile ? 32.sp : 24.sp,
+                    style: FontUtils.title(
+                      context: context,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
-                      context: context,
                     ),
                   ),
                 ),
@@ -146,12 +142,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   },
                   icon: Icon(
                     Icons.camera_alt_outlined,
-                    size: IconUtils.responsiveIconSize(isMobile ? 20.w : 16.w, context),
+                    size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                   ),
                   label: Text(
                     'Change Photo',
-                    style: FontUtils.globalForceResponsiveBodyStyle(
-                      fontSize: isMobile ? 16.sp : 14.sp,
+                    style: FontUtils.body(
                       context: context,
                     ),
                   ),
@@ -180,7 +175,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -191,11 +186,10 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Text(
             'Contact Information',
-            style: FontUtils.globalForceResponsiveTitleStyle(
-              fontSize: isMobile ? 20.sp : 18.sp,
+            style: FontUtils.title(
+              context: context,
               fontWeight: FontWeight.w600,
               color: AppColors.lightOnSurface,
-              context: context,
             ),
           ),
           SizedBox(height: 24.h),
@@ -219,7 +213,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -297,7 +291,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -308,11 +302,10 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Text(
             'Actions',
-            style: FontUtils.globalForceResponsiveTitleStyle(
-              fontSize: isMobile ? 20.sp : 18.sp,
+            style: FontUtils.title(
+              context: context,
               fontWeight: FontWeight.w600,
               color: AppColors.lightOnSurface,
-              context: context,
             ),
           ),
           SizedBox(height: 24.h),
@@ -333,10 +326,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 child: Text(
                   'Save Changes',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: isMobile ? 18.sp : 16.sp,
-                    fontWeight: FontWeight.w600,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -353,17 +345,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
-                  side: BorderSide(color: AppColors.primary),
+                  side: const BorderSide(color: AppColors.primary),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                 ),
                 child: Text(
                   'Change Password',
-                  style: FontUtils.globalForceResponsiveBodyStyle(
-                    fontSize: isMobile ? 18.sp : 16.sp,
-                    fontWeight: FontWeight.w600,
+                  style: FontUtils.body(
                     context: context,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -380,33 +371,35 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           label,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
+          style: FontUtils.body(
+            context: context,
             fontWeight: FontWeight.w500,
             color: AppColors.lightOnSurface,
-            context: context,
           ),
         ),
         SizedBox(height: 8.h),
         TextField(
           controller: controller,
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: isMobile ? 16.sp : 14.sp,
-            color: AppColors.lightOnSurface,
+          style: FontUtils.body(
             context: context,
+            color: AppColors.lightOnSurface,
           ),
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+              borderSide: BorderSide(
+                color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3),
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.lightOnSurfaceVariant.withOpacity(0.3)),
+              borderSide: BorderSide(
+                color: AppColors.lightOnSurfaceVariant.withValues(alpha: 0.3),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: 12.w,
@@ -422,34 +415,34 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
           Icon(
             icon,
-            size: IconUtils.responsiveIconSize(isMobile ? 24.w : 20.w, context),
+            size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
             color: color,
           ),
           SizedBox(height: 8.h),
           Text(
             value,
-            style: FontUtils.globalForceResponsiveTitleStyle(
-              fontSize: isMobile ? 18.sp : 16.sp,
+            style: FontUtils.title(
+              context: context,
               fontWeight: FontWeight.bold,
               color: color,
-              context: context,
             ),
           ),
           SizedBox(height: 4.h),
           Text(
             title,
-            style: FontUtils.globalForceResponsiveBodyStyle(
-              fontSize: isMobile ? 12.sp : 10.sp,
-              color: AppColors.lightOnSurfaceVariant,
+            style: FontUtils.body(
               context: context,
+              color: AppColors.lightOnSurfaceVariant,
             ),
           ),
         ],
@@ -460,13 +453,8 @@ class _ProfilePageState extends State<ProfilePage> {
   void _saveProfile() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(
-        'Profile updated successfully',
-        style: FontUtils.globalForceResponsiveBodyStyle(
-          fontSize: 14.sp,
-          context: context,
-        ),
-      )),
+        content: FontUtils.bodyText('Profile updated successfully', context),
+      ),
     );
   }
 
@@ -474,30 +462,12 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Change Password',
-          style: FontUtils.globalForceResponsiveTitleStyle(
-            fontSize: 18.sp,
-            context: context,
-          ),
-        ),
-        content: Text(
-          'Password change feature will be implemented soon.',
-          style: FontUtils.globalForceResponsiveBodyStyle(
-            fontSize: 14.sp,
-            context: context,
-          ),
-        ),
+        title: FontUtils.titleText('Change Password', context),
+        content: FontUtils.bodyText('Password change feature will be implemented soon.', context),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: FontUtils.globalForceResponsiveBodyStyle(
-                fontSize: 14.sp,
-                context: context,
-              ),
-            ),
+            child: FontUtils.bodyText('OK', context),
           ),
         ],
       ),

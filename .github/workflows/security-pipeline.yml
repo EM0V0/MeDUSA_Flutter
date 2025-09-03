@@ -1147,7 +1147,7 @@ jobs:
                 exit(1);
               }
               final depsData = json.decode(result.stdout);
-
+              
               // 4. Process dependencies
               for (var package in depsData['packages']) {
                 final packageName = package['name'];
@@ -1324,14 +1324,14 @@ jobs:
                print('By Platform: ' + byPlatform.toString());
                print('By Source: ' + bySource.toString());
               print('=== End Statistics ===');
-                         } catch (e, stack) {
+            } catch (e, stack) {
                print('Error generating enhanced Flutter SBOM: ' + e.toString());
                print('Stack trace: ' + stack.toString());
               exit(1);
             }
           }
           EOF
-
+          
           dart run generate-enhanced-flutter-sbom.dart
           
           # Validate Flutter SBOM format
@@ -2418,12 +2418,12 @@ jobs:
           echo "Starting Grype scan with enhanced-sbom.json..."
           if [ -f "enhanced-sbom.json" ]; then
             grype sbom:enhanced-sbom.json --output sarif --file grype-results.sarif || {
-              EXIT_CODE=$?
-              echo "Grype scan completed with exit code: $EXIT_CODE"
-              if [ ! -f "grype-results.sarif" ]; then
-                echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
-              fi
-            }
+            EXIT_CODE=$?
+            echo "Grype scan completed with exit code: $EXIT_CODE"
+            if [ ! -f "grype-results.sarif" ]; then
+              echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
+            fi
+          }
           else
             echo "❌ enhanced-sbom.json not found, creating empty Grype results"
             echo '{"version": "2.1.0", "runs": []}' > grype-results.sarif
@@ -2443,12 +2443,12 @@ jobs:
           echo "Starting OSV Scanner with enhanced-sbom.json..."
           if [ -f "enhanced-sbom.json" ]; then
             ./osv-scanner_linux_amd64 --sbom=enhanced-sbom.json --format=json > osv-results.json || {
-              EXIT_CODE=$?
-              echo "OSV Scanner completed with exit code: $EXIT_CODE"
-              if [ ! -f "osv-results.json" ] || [ ! -s "osv-results.json" ]; then
-                echo '{"results": []}' > osv-results.json
-              fi
-            }
+            EXIT_CODE=$?
+            echo "OSV Scanner completed with exit code: $EXIT_CODE"
+            if [ ! -f "osv-results.json" ] || [ ! -s "osv-results.json" ]; then
+              echo '{"results": []}' > osv-results.json
+            fi
+          }
           else
             echo "❌ enhanced-sbom.json not found, creating empty OSV results"
             echo '{"results": []}' > osv-results.json
@@ -2786,7 +2786,7 @@ jobs:
                   }
                 }
                 
-                  final sarif = {
+                final sarif = {
                     "version": "2.1.0",
                     "runs": [
                       {
@@ -2868,51 +2868,51 @@ jobs:
           
           def check_licenses(sbom_file):
               try:
-                  with open(sbom_file, 'r') as f:
-                      sbom = json.load(f)
-                  report = {
-                      'timestamp': datetime.now().isoformat(),
-                      'compliant': True,
-                      'violations': [],
-                      'warnings': [],
-                      'summary': {
-                          'total_packages': 0,
-                          'prohibited_licenses': 0,
-                          'warning_licenses': 0
-                      }
+              with open(sbom_file, 'r') as f:
+                  sbom = json.load(f)
+              report = {
+                  'timestamp': datetime.now().isoformat(),
+                  'compliant': True,
+                  'violations': [],
+                  'warnings': [],
+                  'summary': {
+                      'total_packages': 0,
+                      'prohibited_licenses': 0,
+                      'warning_licenses': 0
                   }
-                  components = sbom.get('components', [])
-                  report['summary']['total_packages'] = len(components)
-                  for component in components:
-                      name = component.get('name', 'unknown')
-                      version = component.get('version', 'unknown')
-                      licenses = component.get('licenses', [])
-                      for license_info in licenses:
-                          license_id = license_info.get('license', {}).get('id', '')
-                          if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
-                              report['violations'].append({
-                                  'package': name,
-                                  'version': version,
-                                  'license': license_id,
-                                  'severity': 'HIGH'
-                              })
-                              report['summary']['prohibited_licenses'] += 1
-                              report['compliant'] = False
-                          elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
-                              report['warnings'].append({
-                                  'package': name,
-                                  'version': version,
-                                  'license': license_id,
-                                  'severity': 'MEDIUM'
-                              })
-                              report['summary']['warning_licenses'] += 1
-                  with open('license-compliance-report.json', 'w') as f:
-                      json.dump(report, f, indent=2)
-                  print(f"License compliance check completed")
-                  print(f"Total packages: {report['summary']['total_packages']}")
-                  print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
-                  print(f"Warning licenses: {report['summary']['warning_licenses']}")
-                  return report['compliant']
+              }
+              components = sbom.get('components', [])
+              report['summary']['total_packages'] = len(components)
+              for component in components:
+                  name = component.get('name', 'unknown')
+                  version = component.get('version', 'unknown')
+                  licenses = component.get('licenses', [])
+                  for license_info in licenses:
+                      license_id = license_info.get('license', {}).get('id', '')
+                      if any(prohibited in license_id.upper() for prohibited in PROHIBITED_LICENSES):
+                          report['violations'].append({
+                              'package': name,
+                              'version': version,
+                              'license': license_id,
+                              'severity': 'HIGH'
+                          })
+                          report['summary']['prohibited_licenses'] += 1
+                          report['compliant'] = False
+                      elif any(warning in license_id.upper() for warning in WARNING_LICENSES):
+                          report['warnings'].append({
+                              'package': name,
+                              'version': version,
+                              'license': license_id,
+                              'severity': 'MEDIUM'
+                          })
+                          report['summary']['warning_licenses'] += 1
+              with open('license-compliance-report.json', 'w') as f:
+                  json.dump(report, f, indent=2)
+              print(f"License compliance check completed")
+              print(f"Total packages: {report['summary']['total_packages']}")
+              print(f"Prohibited licenses: {report['summary']['prohibited_licenses']}")
+              print(f"Warning licenses: {report['summary']['warning_licenses']}")
+              return report['compliant']
               except Exception as e:
                   print(f'Error processing license compliance: {e}', file=sys.stderr)
                   import traceback
@@ -2922,7 +2922,7 @@ jobs:
           if __name__ == '__main__':
               try:
                   compliant = check_licenses('enhanced-sbom.json')
-                  sys.exit(0 if compliant else 1)
+              sys.exit(0 if compliant else 1)
               except Exception as e:
                   print(f'Fatal error in license check: {e}', file=sys.stderr)
                   sys.exit(1)
@@ -3232,7 +3232,7 @@ jobs:
                       secret_count = len(secret_data)
                   else:
                       # Parse TruffleHog v3 JSON array output correctly
-                      with open(secret_file, 'r') as f:
+                  with open(secret_file, 'r') as f:
                           content = f.read().strip()
                           if content.startswith('[') and content.endswith(']'):
                               # JSON array format
@@ -3243,7 +3243,7 @@ jobs:
                                   secret_count = 0
                           else:
                               # Legacy format - count SourceMetadata occurrences
-                              secret_count = content.count('"SourceMetadata"')
+                      secret_count = content.count('"SourceMetadata"')
                   unified_report['summary']['secrets_found'] = secret_count
                   unified_report['summary']['supply_chain_issues'] += secret_count
                   print(f"Found {secret_count} secrets in {secret_file}")
@@ -3669,22 +3669,22 @@ jobs:
           python3 validate-artifacts.py
           
           if [ $? -eq 0 ]; then
-              echo "================================================"
-              echo "Flutter Security Pipeline Execution Complete"
-              echo "================================================"
-              echo ""
-              cat security-report.md
-              echo ""
-              echo "================================================"
-              echo "Artifacts Generated:"
-              echo "- Software Bill of Materials (SBOM)"
-              echo "- Vulnerability Scan Results"
-              echo "- SAST Analysis Reports"
-              echo "- Supply Chain Security Report"
-              echo "- Unified Security Report"
-              echo ""
-              echo "View detailed results in GitHub Security tab and workflow artifacts"
-              echo "================================================"
+          echo "================================================"
+          echo "Flutter Security Pipeline Execution Complete"
+          echo "================================================"
+          echo ""
+          cat security-report.md
+          echo ""
+          echo "================================================"
+          echo "Artifacts Generated:"
+          echo "- Software Bill of Materials (SBOM)"
+          echo "- Vulnerability Scan Results"
+          echo "- SAST Analysis Reports"
+          echo "- Supply Chain Security Report"
+          echo "- Unified Security Report"
+          echo ""
+          echo "View detailed results in GitHub Security tab and workflow artifacts"
+          echo "================================================"
           else
               echo "⚠️ Pipeline completed with some validation issues, but continuing..."
               echo "================================================"

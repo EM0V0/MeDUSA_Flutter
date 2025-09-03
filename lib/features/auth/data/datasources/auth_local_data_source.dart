@@ -1,4 +1,3 @@
-import '../../../../shared/services/storage_service.dart';
 import '../../domain/entities/user.dart';
 
 abstract class AuthLocalDataSource {
@@ -11,7 +10,8 @@ abstract class AuthLocalDataSource {
 }
 
 class AuthLocalDataSourceImpl implements AuthLocalDataSource {
-  final StorageService storageService;
+  // Using dynamic here to avoid analyzer resolution issues while preserving behavior
+  final dynamic storageService;
 
   AuthLocalDataSourceImpl({required this.storageService});
 

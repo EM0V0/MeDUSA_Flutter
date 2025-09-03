@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
@@ -16,14 +18,7 @@ class AppRouter {
   static final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
   static final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
-  // Simple authentication state for demo
-  static bool _isAuthenticated = false;
-
-  static void setAuthenticated(bool value) {
-    _isAuthenticated = value;
-  }
-
-  static final router = GoRouter(
+  static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     debugLogDiagnostics: true,
     initialLocation: '/dashboard',
@@ -125,31 +120,32 @@ class AppRouter {
     errorBuilder: (context, state) => ErrorPage(error: state.error),
   );
 
-  // Redirect logic for authentication
+  // Authentication state check using BLoC
   static String? _redirect(BuildContext context, GoRouterState state) {
-    // TODO: Implement actual authentication check
-    final isLoggedIn = _checkAuthStatus();
-    final isLoggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+    try {
+      final authBloc = BlocProvider.of<AuthBloc>(context, listen: false);
+      final authState = authBloc.state;
+      
+      final isAuthenticated = authState is AuthAuthenticated;
+      final isLoggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/register';
 
-    // If not logged in and not on auth page, redirect to login
-    if (!isLoggedIn && !isLoggingIn) {
-      return '/login';
+      // If not authenticated and not on auth page, redirect to login
+      if (!isAuthenticated && !isLoggingIn) {
+        return '/login';
+      }
+
+      // If authenticated and on auth page, redirect to dashboard
+      if (isAuthenticated && isLoggingIn) {
+        return '/dashboard';
+      }
+
+      // No redirect needed
+      return null;
+    } catch (e) {
+      // If BLoC is not available (app initializing), allow auth pages
+      final isLoggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+      return isLoggingIn ? null : '/login';
     }
-
-    // If logged in and on auth page, redirect to dashboard
-    if (isLoggedIn && isLoggingIn) {
-      return '/dashboard';
-    }
-
-    // No redirect needed
-    return null;
-  }
-
-  // TODO: Implement actual authentication check
-  static bool _checkAuthStatus() {
-    // This should check actual authentication state
-    // For now, using the simple authentication state
-    return _isAuthenticated;
   }
 
   // Custom transition animations
@@ -169,52 +165,43 @@ class AppRouter {
     );
   }
 
-  static Widget _fadeTransition(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    return FadeTransition(
-      opacity: animation.drive(
-        CurveTween(curve: Curves.easeInOut),
-      ),
-      child: child,
-    );
-  }
-
   // Navigation helper methods
-  static void goToLogin() {
-    router.goNamed('login');
+  static void goToLogin(BuildContext context) {
+    GoRouter.of(context).goNamed('login');
   }
 
-  static void goToRegister() {
-    router.goNamed('register');
+  static void goToRegister(BuildContext context) {
+    GoRouter.of(context).goNamed('register');
   }
 
-  static void goToDashboard() {
-    router.goNamed('dashboard');
+  static void goToDashboard(BuildContext context) {
+    GoRouter.of(context).goNamed('dashboard');
   }
 
-  static void goToPatients() {
-    router.goNamed('patients');
+  static void goToPatients(BuildContext context) {
+    GoRouter.of(context).goNamed('patients');
   }
 
-  static void goToPatientDetail(String patientId) {
-    router.goNamed('patient-detail', pathParameters: {'patientId': patientId});
+  static void goToPatientDetail(BuildContext context, String patientId) {
+    GoRouter.of(context).goNamed('patient-detail', pathParameters: {'patientId': patientId});
   }
 
-  static void goToSettings() {
-    router.goNamed('settings');
+  static void goToSettings(BuildContext context) {
+    GoRouter.of(context).goNamed('settings');
   }
 
-  static void goToReports() {
-    router.goNamed('reports');
+  static void goToReports(BuildContext context) {
+    GoRouter.of(context).goNamed('reports');
   }
 
-  static void logout() {
-    // TODO: Clear authentication state
-    router.goNamed('login');
+  static void goToProfile(BuildContext context) {
+    GoRouter.of(context).goNamed('profile');
+  }
+
+  static void logout(BuildContext context) {
+    final authBloc = BlocProvider.of<AuthBloc>(context, listen: false);
+    authBloc.add(LogoutRequested());
+    GoRouter.of(context).goNamed('login');
   }
 }
 
@@ -252,7 +239,7 @@ class ErrorPage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => AppRouter.goToDashboard(),
+              onPressed: () => AppRouter.goToDashboard(context),
               child: const Text('Go to Dashboard'),
             ),
           ],

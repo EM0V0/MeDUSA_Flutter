@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
-/// 网络服务抽象类
+/// Network service abstract class
 abstract class NetworkService {
   Future<Response<T>> get<T>(
     String path, {
@@ -40,7 +41,7 @@ abstract class NetworkService {
   void clearAuthToken();
 }
 
-/// 网络服务实现
+/// Network service implementation
 class NetworkServiceImpl implements NetworkService {
   final Dio _dio;
 
@@ -77,22 +78,22 @@ class NetworkServiceImpl implements NetworkService {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        print('Network timeout: ${error.message}');
+        debugPrint('Network timeout: ${error.message}');
         break;
       case DioExceptionType.badResponse:
-        print('Bad response: ${error.response?.statusCode} - ${error.response?.data}');
+        debugPrint('Bad response: ${error.response?.statusCode} - ${error.response?.data}');
         break;
       case DioExceptionType.cancel:
-        print('Request cancelled: ${error.message}');
+        debugPrint('Request cancelled: ${error.message}');
         break;
       case DioExceptionType.connectionError:
-        print('Connection error: ${error.message}');
+        debugPrint('Connection error: ${error.message}');
         break;
       case DioExceptionType.unknown:
-        print('Unknown error: ${error.message}');
+        debugPrint('Unknown error: ${error.message}');
         break;
       case DioExceptionType.badCertificate:
-        print('Bad certificate: ${error.message}');
+        debugPrint('Bad certificate: ${error.message}');
         break;
     }
   }

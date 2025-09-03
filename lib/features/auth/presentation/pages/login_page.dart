@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/router/app_router.dart';
+// Removed AppRouter import to avoid circular dependency and undefined symbol
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/font_utils.dart';
 import '../../../../core/utils/icon_utils.dart';
@@ -51,17 +51,16 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       Icon(
                         Icons.medical_services_rounded,
-                        size: IconUtils.responsiveIconSize(80.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.xxlarge, context),
                         color: AppColors.primary,
                       ),
                       SizedBox(height: 16.h),
                       Text(
                         AppConstants.appName,
-                        style: FontUtils.forceResponsiveTitleStyle(
-                          fontSize: 32.sp,
+                        style: FontUtils.title(
+                          context: context,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
-                          context: context,
                         ),
                       ),
                       SizedBox(height: 8.h),
@@ -86,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
                       hintText: 'Enter your email address',
                       prefixIcon: Icon(
                         Icons.email_outlined,
-                        size: IconUtils.responsiveIconSize(24.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                       ),
                     ),
                     validator: (value) {
@@ -111,12 +110,12 @@ class _LoginPageState extends State<LoginPage> {
                       hintText: 'Enter your password',
                       prefixIcon: Icon(
                         Icons.lock_outlined,
-                        size: IconUtils.responsiveIconSize(24.w, context),
+                        size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                          size: IconUtils.responsiveIconSize(20.w, context),
+                          size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                         ),
                         onPressed: () {
                           setState(() {
@@ -165,9 +164,7 @@ class _LoginPageState extends State<LoginPage> {
                   // Demo Login Button (for testing)
                   ElevatedButton(
                     onPressed: () {
-                      print('Demo login clicked!');
-                      // Set authentication state to true
-                      AppRouter.setAuthenticated(true);
+                      debugPrint('Demo login clicked!');
                       // Navigate to dashboard
                       GoRouter.of(context).go('/dashboard');
                     },
@@ -222,18 +219,6 @@ class _LoginPageState extends State<LoginPage> {
           _isLoading = false;
         });
       }
-    }
-  }
-
-  void _handleDemoLogin() {
-    // Navigate directly to dashboard for demo purposes
-    print('Demo login clicked!'); // 添加调试信息
-    try {
-      GoRouter.of(context).go('/dashboard');
-    } catch (e) {
-      print('Navigation error: $e'); // 添加错误调试信息
-      // 备用导航方法
-      Navigator.of(context).pushReplacementNamed('/dashboard');
     }
   }
 }

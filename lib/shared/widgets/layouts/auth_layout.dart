@@ -52,13 +52,13 @@ class AuthLayout extends StatelessWidget {
                     Text(
                       'Advanced Parkinson\'s Disease\nMonitoring System',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: AppColors.onPrimary.withOpacity(0.9),
+                            color: AppColors.onPrimary.withValues(alpha: 0.9),
                           ),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 32.h),
                     Card(
-                      color: AppColors.onPrimary.withOpacity(0.1),
+                      color: AppColors.onPrimary.withValues(alpha: 0.1),
                       child: Padding(
                         padding: EdgeInsets.all(16.w),
                         child: Column(
@@ -71,7 +71,7 @@ class AuthLayout extends StatelessWidget {
                                   size: 20.w,
                                 ),
                                 SizedBox(width: 8.w),
-                                Text(
+                                const Text(
                                   'End-to-End Encryption',
                                   style: TextStyle(
                                     color: AppColors.onPrimary,
@@ -89,7 +89,7 @@ class AuthLayout extends StatelessWidget {
                                   size: 20.w,
                                 ),
                                 SizedBox(width: 8.w),
-                                Text(
+                                const Text(
                                   'Real-time Monitoring',
                                   style: TextStyle(
                                     color: AppColors.onPrimary,
@@ -107,7 +107,7 @@ class AuthLayout extends StatelessWidget {
                                   size: 20.w,
                                 ),
                                 SizedBox(width: 8.w),
-                                Text(
+                                const Text(
                                   'Advanced Analytics',
                                   style: TextStyle(
                                     color: AppColors.onPrimary,
