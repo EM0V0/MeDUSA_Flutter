@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -8,6 +9,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/font_utils.dart';
 import '../../../../core/utils/icon_utils.dart';
+import '../bloc/auth_bloc.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -165,6 +167,9 @@ class _LoginPageState extends State<LoginPage> {
                   ElevatedButton(
                     onPressed: () {
                       debugPrint('Demo login clicked!');
+                      // Update AuthBloc state first, then navigate
+                      final authBloc = BlocProvider.of<AuthBloc>(context, listen: false);
+                      authBloc.add(LoginRequested(email: 'demo@medusa.com', password: 'demo123'));
                       // Navigate to dashboard
                       GoRouter.of(context).go('/dashboard');
                     },
