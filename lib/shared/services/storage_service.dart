@@ -9,7 +9,7 @@ import '../../core/constants/app_constants.dart';
 import 'encryption_service.dart';
 import 'security_service.dart';
 
-/// ž:„‰hX¨¡½a{
+/// Storage service interface for secure data managementž:„‰hX¨¡½a{
 abstract class StorageService {
   // Secure Storage (for sensitive data like tokens)
   Future<void> storeSecure(String key, String value, {bool encrypt = true});
@@ -77,7 +77,7 @@ abstract class StorageService {
   Future<void> rotateEncryptionKeys();
 }
 
-/// ž:„‰hX¨¡ž°
+/// Storage service implementation for secure data managementž:„‰hX¨¡ž°
 class StorageServiceImpl implements StorageService {
   final FlutterSecureStorage _secureStorage;
   final SharedPreferences _sharedPreferences;
