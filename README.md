@@ -84,7 +84,7 @@ meddevice-app-flutter/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Flutter SDK 3.24.3+
+- Flutter SDK 3.27.1+
 - Dart 3.8.0+
 - Node.js 18+ (for web dependencies)
 
@@ -300,7 +300,7 @@ Native Platforms:
 ## 🛠️ Configuration
 
 ### Environment Variables
-- `FLUTTER_VERSION`: Flutter SDK version (default: 3.24.3)
+- `FLUTTER_VERSION`: Flutter SDK version (default: 3.27.1)
 - `SCAN_LEVEL`: Security scan depth (quick/standard/comprehensive/medical-grade)
 
 ### Advanced Pipeline Configuration
