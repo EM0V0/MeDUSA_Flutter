@@ -48,7 +48,7 @@ permissions:
   pull-requests: write
 
 env:
-  FLUTTER_VERSION: '3.19.0'
+  FLUTTER_VERSION: '3.24.3'
 
 jobs:
   setup:
