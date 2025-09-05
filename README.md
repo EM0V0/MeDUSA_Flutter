@@ -1,329 +1,437 @@
-# Flutter Security Pipeline
+# MedDevice Flutter Application
 
-A comprehensive, multi-layered security defense system for Flutter applications with automated vulnerability scanning, dependency analysis, and supply chain security.
+🏥 A secure, enterprise-grade Flutter application for medical device management with comprehensive multi-platform security scanning and regulatory compliance validation.
 
-## 🏗️ Architecture Overview
+## 🚀 Features
 
-### Core Design Principles
-- **Zero-Trust Security**: Comprehensive protection from dependency to deployment
-- **Multi-Layer Defense**: Independent security layers with fail-safe mechanisms
-- **Intelligent Automation**: Smart incremental scanning and caching strategies
-- **Comprehensive Coverage**: 100% dependency and code coverage
+- **Cross-Platform Support**: Flutter app with web, mobile (Android/iOS), and desktop support
+- **Enterprise Security**: Multi-layered security pipeline with medical-grade vulnerability detection
+- **Regulatory Compliance**: FDA, HIPAA, and medical device cybersecurity standards built-in
+- **Responsive Design**: Optimized UI for all screen sizes and platforms
+- **Real-time Monitoring**: Continuous security monitoring with automated threat detection
 
-### Pipeline Architecture
+## 🏗️ Architecture
+
+### Project Structure
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Flutter Security Pipeline v2.1                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Pre-check & Cache  │  SBOM Generation  │  Multi-layer Security Scans    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • Smart triggering    │  • Syft + Flutter SBOM  │  • Dependency scanning    │
-│  • Incremental scan    │  • CycloneDX format     │  • SAST matrix (3 tools)  │
-│  • Enhanced caching    │  • Dependency tree      │  • Supply chain security   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Unified Reporting & Integration                                           │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • Security scoring algorithm    │  • GitHub Security integration        │
-│  • SARIF merge & upload         │  • PR comments automation             │
-│  • Markdown reports             │  • Real-time notifications            │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Job Flow
-```
-pre-check (5min)
-    ↓
-setup-and-cache
-    ↓
-generate-sbom (10min)
-    ↓
-┌─────────────────┬─────────────────┬─────────────────┐
-│ dependency-vuln │ sast-scan       │ supply-chain    │
-│ -scan (15min)   │ (matrix 3 tools)│ -security       │
-│ • Grype         │ • Semgrep       │ (10min)         │
-│ • Trivy         │ • Flutter Analyzer│ • License check │
-│ • OSV Scanner   │ • DCM           │ • Secret scan   │
-└─────────────────┴─────────────────┴─────────────────┘
-    ↓
-upload-security-results
-    ↓
-unified-security-report
+meddevice-app-flutter/
+├── lib/
+│   ├── core/
+│   │   ├── constants/   # Application constants
+│   │   ├── router/      # Go router configuration
+│   │   ├── theme/       # App theme and colors
+│   │   └── utils/       # Core utilities (responsive, fonts, icons)
+│   ├── features/
+│   │   ├── auth/        # Authentication (data/domain/presentation)
+│   │   ├── dashboard/   # Dashboard module
+│   │   ├── patients/    # Patient management
+│   │   ├── profile/     # User profile
+│   │   ├── reports/     # Medical reports
+│   │   └── settings/    # Application settings
+│   ├── shared/
+│   │   ├── services/    # Security, network, storage services
+│   │   └── widgets/     # Shared UI components and layouts
+│   └── main.dart        # Application entry point
+├── android/             # Android platform files
+├── ios/                 # iOS platform files
+├── web/                 # Web platform files
+├── windows/             # Windows desktop files
+├── macos/               # macOS desktop files
+├── linux/               # Linux desktop files
+├── .github/
+│   ├── scripts/         # Security scanning Python scripts
+│   └── workflows/       # Multi-platform security pipeline
+└── artifacts/           # Security scan results and reports
 ```
 
-## 🎨 Responsive Design System
+### Responsive Design System
+- **SimpleResponsive** - Handles responsive layout and overflow protection
+- **SimpleFontUtils** - Manages typography and text scaling
+- Automatic platform detection and optimization
 
-### Simplified Architecture
-Our Flutter app features a **simplified, efficient responsive design system** that eliminates complexity while maintaining full functionality.
+## 🛡️ Enterprise Security Pipeline
 
-#### Core Tools (Only 2 Classes)
-- **`SimpleResponsive`** - Handles all responsive logic, overflow protection, and layout constraints
-- **`SimpleFontUtils`** - Manages responsive typography and text styling
+### Multi-Platform Security Architecture
+- **Universal SBOM Generation**: Syft + Trivy for CycloneDX 1.4 standard SBOM
+- **Multi-Tool Vulnerability Detection**: OSV-Scanner + Trivy + Enhanced Flutter audit
+- **Package Manager Security**: npm/yarn/pnpm audit with multi-lockfile support
+- **Enhanced SAST**: Semgrep with medical-grade security rules
+- **Desktop Platform Scanning**: Windows (winget/choco), macOS (brew), Linux (dpkg/rpm)
+- **License Compliance**: SPDX-compliant license validation
+- **SARIF Integration**: GitHub Security tab with deduplication engine
 
-#### Key Benefits
-- **80% less code complexity** compared to traditional approaches
-- **Automatic overflow protection** - no more "RIGHT OVERFLOWED BY 50 PIXELS"
-- **Optimized mobile fonts** - better readability on small screens
-- **Unified API** - consistent interface across all components
+### Scan Levels & Triggers
+| Level | Trigger | Duration | Security Tools | Compliance |
+|-------|---------|----------|----------------|-------------|
+| **Quick** | Pull Requests | ~5 min | Basic vulnerability + secrets detection | Standard |
+| **Standard** | Push to main/develop | ~10 min | Full dependency + SAST + license check | Enterprise |
+| **Comprehensive** | Scheduled (Weekly) | ~15 min | Enhanced SAST + desktop scanning | Medical |
+| **Medical-Grade** | Manual/Critical | ~20 min | FDA/HIPAA + maximum security rules | Regulatory |
 
-#### Quick Start
-```dart
-import '../utils/simple_responsive.dart';
-import '../utils/simple_font_utils.dart';
-
-// Simple, effective responsive design
-SimpleResponsive.safeContainer(
-  context: context,
-  child: SimpleFontUtils.title('Reports Management', context),
-)
-```
-
-📖 **Full Documentation**: See [RESPONSIVE_DESIGN_COMPLETE.md](RESPONSIVE_DESIGN_COMPLETE.md) for complete usage guide.
-
-## 🔧 Core Features
-
-### 1. Intelligent Pre-check System
-- **Smart Triggering**: Only runs when relevant files change
-- **Incremental Scanning**: Optimizes based on file modifications
-- **Cache Strategy**: Multi-layer caching for 95% hit rate
-
-### 2. Comprehensive SBOM Generation
-- **Dual SBOM**: Syft + Enhanced Flutter SBOM
-- **100% Coverage**: All dependencies (direct, transitive, native)
-- **Standard Compliance**: CycloneDX 1.4 format
-- **Metadata Rich**: Licenses, authors, platforms, versions
-
-### 3. Multi-Tool Vulnerability Scanning
-- **Grype**: Container and package vulnerability detection
-- **Trivy**: Filesystem and dependency scanning
-- **OSV Scanner**: Open source vulnerability database
-- **Enhanced Reporting**: Detailed package-specific findings
-
-### 4. SAST Matrix (Parallel Execution)
-- **Semgrep**: Security-focused static analysis
-- **Flutter Analyzer**: Dart-specific code analysis
-- **Dart Code Metrics**: Code quality and security metrics
-- **Independent Timeouts**: Prevents single tool blocking
-
-### 5. Supply Chain Security
-- **License Compliance**: Prohibited license detection
-- **Secret Scanning**: TruffleHog integration
-- **Dependency Integrity**: Git dependency validation
-- **Build Toolchain**: Flutter, Dart, Gradle, CocoaPods versions
-
-### 6. Unified Security Reporting
-- **Security Scoring**: Algorithm-based risk assessment
-- **SARIF Integration**: GitHub Security tab upload
-- **PR Comments**: Automated status updates
-- **Markdown Reports**: Human-readable summaries
-
-## 📊 Performance Metrics
-
-| Metric | Target | Achieved | Improvement |
-|--------|--------|----------|-------------|
-| Execution Time | < 15min | 15min | -67% |
-| Cache Hit Rate | > 95% | 95% | +58% |
-| Vulnerability Detection | > 98% | 98% | +15% |
-| False Positive Rate | < 10% | 8% | -68% |
-| Resource Usage | Optimized | Optimized | -40% |
-
-## 🛡️ Security Mechanisms
-
-### Dependency Security
-```dart
-// Enhanced dependency processing with comprehensive filtering
-final processedPurls = <String>{};
-final purl = 'pkg:pub/$packageName@$packageVersion';
-
-// CI/CD tool filtering
-if (packageName.contains('actions/') || 
-    packageName.contains('github/')) {
-  continue;
-}
-
-// Skip application itself - app shouldn't be its own dependency
-if (packageName == pubspecInfo['name']) {
-  print('Skipping application itself: $packageName');
-  continue;
-}
-
-// Advanced deduplication with detailed component selection
-List<Map<String, dynamic>> deduplicateComponents(List<Map<String, dynamic>> components) {
-  final seenKeys = <String, Map<String, dynamic>>{};
-  final uniqueComponents = <Map<String, dynamic>>[];
-  
-  for (final component in components) {
-    final name = component['name'] as String?;
-    final version = component['version'] as String?;
-    final key = '$name@$version';
-    
-    if (!seenKeys.containsKey(key)) {
-      seenKeys[key] = component;
-      uniqueComponents.add(component);
-    } else {
-      // Keep component with more detailed information
-      final existing = seenKeys[key]!;
-      final existingProps = (existing['properties'] as List<dynamic>?)?.length ?? 0;
-      final currentProps = (component['properties'] as List<dynamic>?)?.length ?? 0;
-      
-      if (currentProps > existingProps) {
-        // Replace with more detailed component
-        seenKeys[key] = component;
-        // Update in uniqueComponents list
-        for (int i = 0; i < uniqueComponents.length; i++) {
-          final uc = uniqueComponents[i];
-          if (uc['name'] == name && uc['version'] == version) {
-            uniqueComponents[i] = component;
-            break;
-          }
-        }
-      }
-    }
-  }
-  
-  return uniqueComponents;
-}
-```
-
-### Vulnerability Detection
-```yaml
-# Multi-source vulnerability scanning
-dependency-vulnerability-scan:
-  tools:
-    - grype: sbom:enhanced-sbom.json
-    - trivy: fs:.
-    - osv-scanner: sbom:enhanced-sbom.json
-  outputs:
-    - grype-results.sarif
-    - trivy-results.sarif
-    - osv-results.json
-```
-
-### SAST Analysis
-```yaml
-# Parallel SAST matrix
-sast-scan:
-strategy:
-  matrix:
-    include:
-      - tool: semgrep
-          config: 'p/security-audit p/owasp-top-ten auto'
-      - tool: flutter-analyzer
-      - tool: dcm
-  timeout-minutes: ${{ matrix.timeout }}
-```
-
-## 🔧 Critical Issues Fixed
-
-### Duplicate Dependencies Resolution
-- **Problem**: 87 unknown dependencies (79 duplicates + 8 CI/CD tools + app self-reference)
-- **Solution**: Advanced deduplication + comprehensive filtering
-- **Result**: 0 unknown dependencies ✅
-
-### Accurate Vulnerability Reporting
-- **Before**: Generic vulnerability counts
-- **After**: Detailed package information with specific CVE IDs
-
-### Enhanced Statistics
-```json
-{
-  "by_scope": {
-    "required": 15,
-    "optional": 64,
-    "unknown": 0  // ✅ Fixed
-  },
-  "by_platform": {
-    "dart": 158,
-    "android": 12,
-    "ios": 8,
-    "unknown": 0  // ✅ Fixed
-  }
-}
-```
-
-### Quality Validation
-```bash
-=== SBOM Quality Validation ===
-Total components: 177
-GitHub Actions found: 0 ✅
-App self-references found: 0 ✅
-Duplicates found: 0 ✅
-Scope distribution: {'required': 15, 'optional': 64}
-Platform distribution: {'dart': 157, 'android': 12, 'ios': 8}
-Quality score: 100/100 ✅
-```
+### Platform Coverage Matrix
+| Platform | Dependencies | Vulnerabilities | SAST | License | Desktop Scan |
+|----------|-------------|----------------|------|---------|-------------|
+| **Flutter/Dart** | ✅ pubspec.lock | ✅ OSV + Custom DB | ✅ Semgrep | ✅ SPDX | N/A |
+| **Web (npm)** | ✅ package-lock.json | ✅ npm audit | ✅ Semgrep | ✅ SPDX | N/A |
+| **Web (yarn)** | ✅ yarn.lock | ✅ yarn audit | ✅ Semgrep | ✅ SPDX | N/A |
+| **Web (pnpm)** | ✅ pnpm-lock.yaml | ✅ pnpm audit | ✅ Semgrep | ✅ SPDX | N/A |
+| **Android** | ✅ Auto-detect | ✅ Trivy | ✅ Semgrep | ✅ SPDX | N/A |
+| **iOS** | ✅ Auto-detect | ✅ Trivy | ✅ Semgrep | ✅ SPDX | N/A |
+| **Windows** | ✅ winget/choco | ✅ Trivy | ✅ Semgrep | ✅ SPDX | ✅ Native |
+| **macOS** | ✅ brew list | ✅ Trivy | ✅ Semgrep | ✅ SPDX | ✅ Native |
+| **Linux** | ✅ dpkg/rpm | ✅ Trivy | ✅ Semgrep | ✅ SPDX | ✅ Native |
 
 ## 🚀 Quick Start
 
-### Manual Trigger
+### Prerequisites
+- Flutter SDK 3.19.0+
+- Dart 3.3.0+
+- Node.js 18+ (for web dependencies)
+
+### Installation
 ```bash
-# Full security scan
-gh workflow run security-pipeline.yml
+# Clone the repository
+git clone <repository-url>
+cd meddevice-app-flutter
 
-# Incremental scan
-gh workflow run security-pipeline.yml -f scan_type=incremental
+# Install Flutter dependencies
+flutter pub get
+
+# Install web dependencies (if applicable)
+npm install
+
+# Run the application
+flutter run
 ```
 
-### View Results
-- **GitHub Security Tab**: All security findings
-- **Actions Tab**: Detailed execution logs
-- **Artifacts**: Comprehensive reports
-- **PR Comments**: Automatic status updates
+### Development Workflow
+```powershell
+# 1. Install dependencies
+flutter pub get
 
-### Configuration
+# 2. Run local security checks
+flutter analyze
+dart fix --dry-run
+
+# 3. Run unit tests
+flutter test
+
+# 4. Run integration tests (optional)
+flutter drive --target=test_driver/app.dart
+
+# 5. Local security pre-commit scan
+gh workflow run "Multi-Platform Security Pipeline" -f scan_level=quick
+
+# 6. Build for specific platform
+flutter build web          # Web deployment
+flutter build apk          # Android APK
+flutter build ios          # iOS (requires macOS)
+flutter build windows      # Windows desktop
+flutter build macos        # macOS desktop  
+flutter build linux        # Linux desktop
+```
+
+### Pre-Commit Security Checklist
+- [ ] **Code Analysis**: `flutter analyze` passes without errors
+- [ ] **Unit Tests**: `flutter test` achieves >80% coverage
+- [ ] **Dependency Audit**: No high/critical vulnerabilities in `pubspec.lock`
+- [ ] **License Compliance**: All dependencies use approved licenses
+- [ ] **Secrets Detection**: No hardcoded secrets or API keys
+- [ ] **SAST Clean**: Semgrep security rules pass
+
+## 🔧 Security Pipeline Usage
+
+### Manual Security Scanning
+```powershell
+# Trigger security pipeline manually (Windows)
+gh workflow run "Multi-Platform Security Pipeline" -f scan_level=standard
+
+# Available scan levels:
+# - quick: Fast PR validation (5 min)
+# - standard: Full enterprise scan (10 min) 
+# - comprehensive: Deep security analysis (15 min)
+# - medical-grade: Maximum regulatory compliance (20 min)
+```
+
+### Automatic Trigger Conditions
 ```yaml
-# Security thresholds
-env:
-  GRYPE_FAIL_ON_SEVERITY: high
-  TRIVY_SEVERITY: CRITICAL,HIGH,MEDIUM
-  TIMEOUT_MINUTES: 30
+# Pipeline triggers automatically on:
+Push Events:
+  - branches: [main, develop]
+  - paths: ['lib/**', 'test/**', 'pubspec.yaml', 'pubspec.lock']
+  
+Pull Request Events:
+  - branches: [main]
+  - types: [opened, synchronize, reopened]
+  
+Scheduled Events:
+  - cron: '0 2 * * 1' # Every Monday at 2 AM UTC (comprehensive scan)
 ```
 
-## 📋 Usage Examples
+### Security Reports & Artifacts
+- **GitHub Security Tab**: SARIF 2.1.0 compliant vulnerability reports
+- **PR Comments**: Automated security summaries with risk assessment
+- **Downloadable Artifacts** (30-day retention):
+  - `universal-sbom.json` - Complete software bill of materials
+  - `universal-security-results.sarif` - Merged vulnerability findings
+  - `security-summary.json/md` - Executive security dashboard
+  - Individual tool results (Trivy, OSV-Scanner, Semgrep, etc.)
 
-### Vulnerability Report
+### Security Pipeline Architecture
+```mermaid
+graph LR
+    A[Code Push] --> B[Platform Detection]
+    B --> C[Universal Security Scan]
+    C --> D[Enhanced SAST]
+    C --> E[SBOM Generation]
+    C --> F[Vulnerability Scanning]
+    C --> G[License Compliance]
+    D --> H[Results Merger]
+    E --> H
+    F --> H
+    G --> H
+    H --> I[Deduplication]
+    I --> J[SARIF Upload]
+    I --> K[Security Summary]
+    K --> L[Pass/Fail Decision]
 ```
-=== Vulnerable Dependencies ===
-🔴 http@0.13.5 (dart) - high
-   - CVE-2023-1234: HTTP Request Smuggling (high)
-   - CVE-2023-5678: Buffer Overflow (medium)
 
-=== Outdated Dependencies ===
-🟡 flutter_bloc@8.1.3 → 8.1.4 (dart)
-🟠 provider@6.0.5 → 6.1.1 (dart)
+## 📋 Medical Compliance
 
-=== License Violations ===
-⚠️ gpl_package@2.0.0 - Prohibited license: GPL-3.0
+### FDA Medical Device Requirements
+- Data encryption validation (at rest and in transit)
+- Access control mechanism verification
+- Audit logging compliance
+- Data integrity validation
+- Secure communication channel verification
+
+### HIPAA Security Standards
+- PHI (Protected Health Information) protection
+- User authentication and authorization
+- Security incident logging and monitoring
+- Data breach prevention measures
+
+### SPDX License Compliance Matrix
+| Status | Licenses | Action | Medical Device Impact |
+|--------|----------|--------|----------------------|
+| **🚫 PROHIBITED** | GPL-2.0/3.0, AGPL-3.0, SSPL-1.0, BUSL-1.1 | FAIL Build | Copyleft incompatible with proprietary medical software |
+| **⚠️ REVIEW REQUIRED** | LGPL-2.1/3.0, MPL-2.0, EPL-2.0, CC-BY-SA | Flag for Legal | Weak copyleft requiring legal assessment |
+| **✅ APPROVED** | MIT, Apache-2.0, BSD-2/3-Clause, ISC, CC0-1.0 | Auto-approve | Permissive licenses safe for medical use |
+| **❓ UNKNOWN** | Custom/Unrecognized | Manual Review | Requires manual license verification |
+
+## 🔍 SBOM (Software Bill of Materials)
+
+### Universal SBOM Generation
+The pipeline generates enterprise-grade SBOMs using multiple discovery methods:
+
+**Primary Tool**: Syft (with Trivy fallback)
+**Format**: CycloneDX 1.4 JSON standard
+**Coverage**: Universal multi-platform dependency mapping
+
+### SBOM Components Discovered
+```yaml
+Flutter/Dart:
+  - pubspec.lock dependencies
+  - Transitive dependency resolution
+  - Dart SDK components
+  
+Web Ecosystem:
+  - package-lock.json (npm)
+  - yarn.lock (Yarn)
+  - pnpm-lock.yaml (pnpm)
+  - Node.js runtime dependencies
+  
+Native Platforms:
+  - Android: Gradle dependencies, AAR libraries
+  - iOS: CocoaPods, Swift Package Manager
+  - Windows: System libraries, native DLLs
+  - macOS: Homebrew packages, frameworks
+  - Linux: dpkg/rpm system packages
 ```
 
-### Security Score
-```
-Overall Security Score: 85/100 ✅
+### SBOM Security Analysis
+- **Vulnerability Mapping**: Each component cross-referenced with CVE databases
+- **License Compliance**: SPDX license identification and validation
+- **Supply Chain Risk**: Dependency depth and maintainer analysis
+- **Outdated Components**: Version freshness and update recommendations
 
-Vulnerability Summary:
-- 🔴 Critical: 0
-- 🟠 High: 2
-- 🟡 Medium: 5
-- 🟢 Low: 3
+## 📊 Security Metrics & Thresholds
 
-SAST Issues: 12
-Supply Chain Issues: 1
-Secrets Found: 0 ✅
-License Compliant: ✅
+### Granular Fail Strategy
+| Severity | Standard Max | Medical-Grade Max | Action | Impact |
+|----------|-------------|-------------------|--------|--------|
+| **Critical** | 0 | 0 | 🚫 FAIL | Build fails immediately |
+| **High** | 5 | 0 | 🚫 FAIL | Enterprise security breach |
+| **Medium** | 50 | 10 | ⚠️ WARNING | Review recommended |
+| **Low** | ∞ | 20 | ℹ️ INFO | Documentation only |
+| **License Violations** | 0 | 0 | 🚫 FAIL | Legal compliance failure |
+
+### Security Dashboard Metrics
+```json
+{
+  "analysis": {
+    "total_findings": 0,
+    "critical": 0,
+    "high": 0, 
+    "medium": 0,
+    "low": 0,
+    "license_violations": 0
+  },
+  "platform_coverage": {
+    "flutter": true,
+    "web": true,
+    "android": true,
+    "ios": true,
+    "desktop": true
+  },
+  "compliance_status": "PASS|WARNING|FAIL",
+  "risk_score": "0-100",
+  "scan_duration": "seconds",
+  "tools_executed": ["trivy", "osv-scanner", "semgrep"]
+}
 ```
+
+### Medical Device Compliance Validation
+- **FDA Cybersecurity Standards**: Pre-market and post-market requirements
+- **HIPAA Security Rule**: Technical, administrative, and physical safeguards
+- **ISO 14971**: Medical device risk management
+- **IEC 62304**: Medical device software lifecycle processes
+
+## 🛠️ Configuration
+
+### Environment Variables
+- `FLUTTER_VERSION`: Flutter SDK version (default: 3.19.0)
+- `SCAN_LEVEL`: Security scan depth (quick/standard/comprehensive/medical-grade)
+
+### Advanced Pipeline Configuration
+The security pipeline (`.github/workflows/security-pipeline.yml`) features:
+
+**Intelligent Platform Detection**:
+```yaml
+has-flutter: $(test -f pubspec.yaml)
+has-web: $(test -d web -o -f package.json)
+has-android: $(test -d android)
+has-ios: $(test -d ios) 
+has-desktop: $(test -d windows -o -d macos -o -d linux)
+```
+
+**Performance Optimizations**:
+- Parallel job execution with dependency management
+- Comprehensive tool caching (Trivy, Syft, OSV-Scanner)
+- Conditional scanning based on file path changes
+- Background job execution for long-running scans
+
+**Enterprise Features**:
+- Concurrency control to prevent resource conflicts
+- Timeout protection (15-20 minutes max)
+- Graceful degradation with fallback mechanisms
+- Artifact retention policies (30 days)
+
+**Python Security Modules**:
+```bash
+.github/scripts/
+├── desktop_scan.py      # Windows/macOS/Linux native scanning
+├── flutter_audit.py     # Enhanced Flutter security audit
+├── license_check.py     # SPDX license compliance validation
+├── merge_results.py     # SARIF deduplication and merging
+└── security_summary.py  # Executive dashboard generation
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Contributing
+
+### Contribution Workflow
+1. **Fork & Clone**: Fork the repository and clone locally
+2. **Branch**: Create a feature branch from `develop`
+   ```bash
+   git checkout -b feature/your-feature-name develop
+   ```
+3. **Develop**: Make your changes following the security checklist
+4. **Test**: Run local tests and security checks
+   ```powershell
+   flutter test
+   flutter analyze
+   gh workflow run "Multi-Platform Security Pipeline" -f scan_level=quick
+   ```
+5. **Commit**: Use conventional commit messages
+   ```bash
+   git commit -m "feat(auth): add biometric authentication support"
+   ```
+6. **Push & PR**: Push to your fork and create a pull request to `main`
+
+### Pull Request Requirements
+- [ ] **Security Scan**: PR automatically triggers quick security scan
+- [ ] **Code Review**: At least one maintainer approval required
+- [ ] **Tests**: New features must include unit tests
+- [ ] **Documentation**: Update README if adding new features
+- [ ] **Compliance**: Medical device compliance maintained
+
+### Security Standards for Contributors
+- **Zero Tolerance**: Critical/High vulnerabilities block merge
+- **License Compliance**: Only approved licenses (MIT, Apache-2.0, BSD)
+- **Secrets**: Never commit API keys, passwords, or sensitive data
+- **Dependencies**: Justify new dependencies in PR description
 
 ## 🔧 Troubleshooting
 
-### Common Issues
-1. **Cache Miss**: Clear cache and re-run
-2. **Timeout**: Check network connectivity
-3. **False Positives**: Review tool configurations
-4. **Permission Errors**: Verify GitHub permissions
+### Common Security Pipeline Issues
 
-### Support
-- **Documentation**: This README
-- **Issues**: Create GitHub issue
-- **Security**: Contact security team
+#### SBOM Generation Fails
+```bash
+# Issue: Empty SBOM or Syft failure
+# Solution: Check if pubspec.lock exists and is valid
+flutter pub get
+syft . -o cyclonedx-json=test-sbom.json
+
+# Fallback: Use Trivy
+trivy fs . --format cyclonedx --output fallback-sbom.json
+```
+
+#### Security Scan Timeout
+```bash
+# Issue: Pipeline exceeds timeout limits
+# Solution: Run with quick scan level first
+gh workflow run "Multi-Platform Security Pipeline" -f scan_level=quick
+
+# For large projects, consider excluding non-critical paths
+```
+
+#### License Compliance Failure
+```bash
+# Issue: Prohibited license detected
+# Solution: Check package licenses manually
+flutter pub deps --json | jq '.packages[] | {name, version}'
+
+# Replace problematic dependencies with approved alternatives
+```
+
+#### High/Critical Vulnerabilities
+```bash
+# Issue: Build fails due to security vulnerabilities
+# Solution: Update vulnerable dependencies
+flutter pub upgrade
+flutter pub outdated
+
+# Check for security advisories
+dart pub audit
+```
+
+### Getting Help
+- **Security Issues**: Create issue with `security` label
+- **Pipeline Problems**: Check [workflow runs](https://github.com/your-repo/actions)
+- **Medical Compliance**: Contact compliance team for regulatory questions
+- **Documentation**: See [Security Pipeline Enhancements](SECURITY_PIPELINE_ENHANCEMENTS.md)
+
+## 📚 Additional Resources
+- [Flutter Security Best Practices](https://flutter.dev/docs/deployment/security)
+- [OWASP Mobile Top 10](https://owasp.org/www-project-mobile-top-10/)
+- [FDA Medical Device Cybersecurity](https://www.fda.gov/medical-devices/digital-health-center-excellence/cybersecurity)
+- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
+- [SARIF Standard Documentation](https://sarifweb.azurewebsites.net/)
 
 ---
 
-**Summary**: A comprehensive Flutter Security Pipeline v2.1 providing multi-layer defense with intelligent automation, comprehensive coverage, and detailed reporting. All critical issues resolved with clean SBOM statistics and accurate vulnerability assessment. 
+**MedDevice Flutter Application** - Enterprise-grade security for medical device software development.
