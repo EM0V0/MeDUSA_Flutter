@@ -177,7 +177,7 @@ class _PatientsPageState extends State<PatientsPage> {
             ),
             SizedBox(height: 8.h),
             Text(
-              '${filteredPatients.length} patients • ${filteredPatients.where((p) => p.status == PatientStatus.critical).length} critical',
+              '${filteredPatients.length} patients - ${filteredPatients.where((p) => p.status == PatientStatus.critical).length} critical',
               style: FontUtils.body(
                 context: context,
                 color: AppColors.lightOnSurfaceVariant,

@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/admin/presentation/pages/audit_logs_page.dart';
+import '../../features/admin/presentation/pages/device_management_page.dart';
+import '../../features/admin/presentation/pages/system_settings_page.dart';
+import '../../features/admin/presentation/pages/user_management_page.dart';
+import '../../features/devices/presentation/pages/device_connection_page.dart';
+import '../../features/devices/presentation/pages/device_scan_page.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
-import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/auth/presentation/pages/role_test_page.dart';
+import '../../features/auth/presentation/pages/two_factor_setup_page.dart';
+import '../../features/auth/presentation/pages/two_factor_verify_page.dart';
+import '../../features/dashboard/presentation/pages/smart_dashboard_page.dart';
+import '../../features/messages/presentation/pages/messages_page.dart';
 import '../../features/patients/presentation/pages/patient_detail_page.dart';
 import '../../features/patients/presentation/pages/patients_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/symptoms/presentation/pages/symptoms_page.dart';
 import '../../shared/widgets/layouts/auth_layout.dart';
 import '../../shared/widgets/layouts/main_layout.dart';
 
@@ -43,6 +54,52 @@ class AppRouter {
           transitionsBuilder: _slideTransition,
         ),
       ),
+      
+      // 2FA Routes
+      GoRoute(
+        path: '/2fa-setup',
+        name: '2fa-setup',
+        pageBuilder: (context, state) {
+          final email = state.uri.queryParameters['email'] ?? '';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: TwoFactorSetupPage(
+              userEmail: email,
+              onSetupComplete: () {
+                GoRouter.of(context).go('/dashboard');
+              },
+              onCancel: () {
+                GoRouter.of(context).go('/login');
+              },
+            ),
+            transitionsBuilder: _slideTransition,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/2fa-verify',
+        name: '2fa-verify',
+        pageBuilder: (context, state) {
+          final email = state.uri.queryParameters['email'] ?? '';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: TwoFactorVerifyPage(
+              userEmail: email,
+              onVerificationComplete: (success) {
+                if (success) {
+                  GoRouter.of(context).go('/dashboard');
+                } else {
+                  GoRouter.of(context).go('/login');
+                }
+              },
+              onCancel: () {
+                GoRouter.of(context).go('/login');
+              },
+            ),
+            transitionsBuilder: _slideTransition,
+          );
+        },
+      ),
 
       // Main App Routes (with shell navigation)
       ShellRoute(
@@ -51,13 +108,13 @@ class AppRouter {
           return MainLayout(child: child);
         },
         routes: [
-          // Dashboard Route
+          // Dashboard Route (Smart routing based on role)
           GoRoute(
             path: '/dashboard',
             name: 'dashboard',
             pageBuilder: (context, state) => NoTransitionPage(
               key: state.pageKey,
-              child: const DashboardPage(),
+              child: const SmartDashboardPage(),
             ),
           ),
 
@@ -95,6 +152,26 @@ class AppRouter {
             ),
           ),
 
+          // Messages Route
+          GoRoute(
+            path: '/messages',
+            name: 'messages',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const MessagesPage(),
+            ),
+          ),
+
+          // Symptoms Route (for patients)
+          GoRoute(
+            path: '/symptoms',
+            name: 'symptoms',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SymptomsPage(),
+            ),
+          ),
+
           // Reports Route
           GoRoute(
             path: '/reports',
@@ -105,6 +182,62 @@ class AppRouter {
             ),
           ),
 
+          // Admin Routes
+          GoRoute(
+            path: '/user-management',
+            name: 'user-management',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const UserManagementPage(),
+            ),
+          ),
+
+          GoRoute(
+            path: '/device-management',
+            name: 'device-management',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const DeviceManagementPage(),
+            ),
+          ),
+
+          GoRoute(
+            path: '/system-settings',
+            name: 'system-settings',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SystemSettingsPage(),
+            ),
+          ),
+
+          GoRoute(
+            path: '/audit-logs',
+            name: 'audit-logs',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const AuditLogsPage(),
+            ),
+          ),
+
+          // Device Connection Routes (for patients)
+          GoRoute(
+            path: '/device-scan',
+            name: 'device-scan',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const DeviceScanPage(),
+            ),
+          ),
+
+          GoRoute(
+            path: '/device-connection',
+            name: 'device-connection',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const DeviceConnectionPage(),
+            ),
+          ),
+
           // Profile Route
           GoRoute(
             path: '/profile',
@@ -112,6 +245,16 @@ class AppRouter {
             pageBuilder: (context, state) => NoTransitionPage(
               key: state.pageKey,
               child: const ProfilePage(),
+            ),
+          ),
+
+          // Role Test Route (for development/testing)
+          GoRoute(
+            path: '/role-test',
+            name: 'role-test',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const RoleTestPage(),
             ),
           ),
         ],

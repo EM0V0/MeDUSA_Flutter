@@ -8,35 +8,43 @@ class AppConstants {
   // Base font size (desktop first)
   static const double _baseFontSize = 16.0;
   
-  // Font ratio system
-  static const double _titleRatio = 1.5;      // Title font ratio
-  static const double _subtitleRatio = 1.25;  // Subtitle font ratio
-  static const double _bodyRatio = 1.0;       // Body font ratio
-  static const double _captionRatio = 0.875;  // Caption font ratio
-  static const double _buttonRatio = 0.9375;  // Button font ratio
+  // Refined typography hierarchy for elegant UI
+  static const double _displayRatio = 1.75;    // Display text (main page titles)
+  static const double _headlineRatio = 1.375;  // Headlines (section headers) 
+  static const double _titleRatio = 1.125;     // Titles (card headers, reduced from 1.5)
+  static const double _bodyLargeRatio = 1.0;   // Body large (primary content)
+  static const double _bodyRatio = 0.875;      // Body (secondary content, reduced)
+  static const double _labelRatio = 0.75;      // Labels (form labels, tags)
+  static const double _captionRatio = 0.6875;  // Caption (metadata, timestamps, smaller)
   
-  // Desktop font sizes (primary sizes)
-  static const double desktopTitleFontSize = _baseFontSize * _titleRatio;      // 24.0
-  static const double desktopSubtitleFontSize = _baseFontSize * _subtitleRatio; // 20.0
-  static const double desktopBodyFontSize = _baseFontSize * _bodyRatio;         // 16.0
-  static const double desktopCaptionFontSize = _baseFontSize * _captionRatio;   // 14.0
-  static const double desktopButtonFontSize = _baseFontSize * _buttonRatio;     // 15.0
+  // Desktop font sizes (primary sizes) - refined hierarchy
+  static const double desktopDisplayFontSize = _baseFontSize * _displayRatio;      // 28.0
+  static const double desktopHeadlineFontSize = _baseFontSize * _headlineRatio;    // 22.0
+  static const double desktopTitleFontSize = _baseFontSize * _titleRatio;          // 18.0 (reduced)
+  static const double desktopBodyLargeFontSize = _baseFontSize * _bodyLargeRatio;  // 16.0
+  static const double desktopBodyFontSize = _baseFontSize * _bodyRatio;            // 14.0 (reduced)
+  static const double desktopLabelFontSize = _baseFontSize * _labelRatio;          // 12.0
+  static const double desktopCaptionFontSize = _baseFontSize * _captionRatio;      // 11.0 (reduced)
   
-  // Mobile font sizes (secondary sizes, scaled from desktop)
-  static const double _mobileScaleFactor = 0.8; // Mobile scale factor - adjusted from 0.875 to 0.8, reduce font size
-  static const double mobileTitleFontSize = desktopTitleFontSize * _mobileScaleFactor;      // 19.2 (24.0 * 0.8)
-  static const double mobileSubtitleFontSize = desktopSubtitleFontSize * _mobileScaleFactor; // 16.0 (20.0 * 0.8)
-  static const double mobileBodyFontSize = desktopBodyFontSize * _mobileScaleFactor;         // 12.8 (16.0 * 0.8)
-  static const double mobileCaptionFontSize = desktopCaptionFontSize * _mobileScaleFactor;   // 11.2 (14.0 * 0.8)
-  static const double mobileButtonFontSize = desktopButtonFontSize * _mobileScaleFactor;     // 12.0 (15.0 * 0.8)
+  // Mobile font sizes (refined for better readability)
+  static const double _mobileScaleFactor = 1.0; // Mobile scale factor - keep same size for readability
+  static const double mobileDisplayFontSize = desktopDisplayFontSize * _mobileScaleFactor;      // 28.0
+  static const double mobileHeadlineFontSize = desktopHeadlineFontSize * _mobileScaleFactor;    // 22.0
+  static const double mobileTitleFontSize = desktopTitleFontSize * _mobileScaleFactor;          // 18.0
+  static const double mobileBodyLargeFontSize = desktopBodyLargeFontSize * _mobileScaleFactor;  // 16.0
+  static const double mobileBodyFontSize = desktopBodyFontSize * _mobileScaleFactor;            // 14.0
+  static const double mobileLabelFontSize = desktopLabelFontSize * _mobileScaleFactor;          // 12.0
+  static const double mobileCaptionFontSize = desktopCaptionFontSize * _mobileScaleFactor;      // 11.0
   
   // Tablet font sizes (medium sizes)
-  static const double _tabletScaleFactor = 0.9; // Tablet scale factor - adjusted from 0.9375 to 0.9, moderately reduce font size
-  static const double tabletTitleFontSize = desktopTitleFontSize * _tabletScaleFactor;      // 21.6 (24.0 * 0.9)
-  static const double tabletSubtitleFontSize = desktopSubtitleFontSize * _tabletScaleFactor; // 18.0 (20.0 * 0.9)
-  static const double tabletBodyFontSize = desktopBodyFontSize * _tabletScaleFactor;         // 14.4 (16.0 * 0.9)
-  static const double tabletCaptionFontSize = desktopCaptionFontSize * _tabletScaleFactor;   // 12.6 (14.0 * 0.9)
-  static const double tabletButtonFontSize = desktopButtonFontSize * _tabletScaleFactor;     // 13.5 (15.0 * 0.9)
+  static const double _tabletScaleFactor = 0.95; // Tablet scale factor - slightly smaller than desktop
+  static const double tabletDisplayFontSize = desktopDisplayFontSize * _tabletScaleFactor;      // 26.6
+  static const double tabletHeadlineFontSize = desktopHeadlineFontSize * _tabletScaleFactor;    // 20.9
+  static const double tabletTitleFontSize = desktopTitleFontSize * _tabletScaleFactor;          // 17.1
+  static const double tabletBodyLargeFontSize = desktopBodyLargeFontSize * _tabletScaleFactor;  // 15.2
+  static const double tabletBodyFontSize = desktopBodyFontSize * _tabletScaleFactor;            // 13.3
+  static const double tabletLabelFontSize = desktopLabelFontSize * _tabletScaleFactor;          // 11.4
+  static const double tabletCaptionFontSize = desktopCaptionFontSize * _tabletScaleFactor;      // 10.45
   
   // ===== Layered minimum font protection system =====
   
@@ -49,9 +57,9 @@ class AppConstants {
   
   // Device-specific minimum font protection
   static const double mobileMinFontSize = 16.0;           // Mobile minimum font size (touch-friendly)
-  static const double mobileMinTitleFontSize = 20.0;      // Mobile minimum title font size
+  static const double mobileMinTitleFontSize = 22.0;      // Mobile minimum title font size (increased)
   static const double mobileMinBodyFontSize = 16.0;       // Mobile minimum body font size
-  static const double mobileMinCaptionFontSize = 14.0;    // Mobile minimum caption font size
+  static const double mobileMinCaptionFontSize = 15.0;    // Mobile minimum caption font size (increased)
   static const double mobileMinButtonFontSize = 18.0;     // Mobile minimum button font size (touch-friendly)
   
   static const double tabletMinFontSize = 15.0;           // Tablet minimum font size
@@ -137,6 +145,20 @@ class AppConstants {
   static const double mobileMinIconSize = iconSizeMedium; // 24.0
   static const double defaultIconSize = iconSizeMedium;   // 24.0
   static const double largeIconSize = iconSizeLarge;      // 32.0
+  
+  // Status indicator sizes (for small status icons, badges, etc.)
+  static const double statusIndicatorSmall = 12.0;       // Small status indicator (online dots, etc.)
+  static const double statusIndicatorMedium = 16.0;      // Medium status indicator  
+  static const double statusIndicatorLarge = 20.0;       // Large status indicator
+  static const double mobileStatusIndicatorMin = 14.0;   // Minimum mobile status indicator size
+  
+  // Avatar and profile picture sizes with protection
+  static const double avatarSizeSmall = 24.0;            // Small avatar (list items)
+  static const double avatarSizeMedium = 32.0;           // Medium avatar (cards)
+  static const double avatarSizeLarge = 48.0;            // Large avatar (profiles)
+  static const double avatarSizeXLarge = 64.0;           // Extra large avatar
+  static const double minAvatarSize = 24.0;              // Absolute minimum avatar size
+  static const double mobileMinAvatarSize = 32.0;        // Minimum mobile avatar size
 
   // ===== Border radius system refactoring =====
   // Base radius unit

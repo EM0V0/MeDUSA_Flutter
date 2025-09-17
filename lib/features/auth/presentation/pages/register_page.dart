@@ -142,8 +142,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     items: const [
                       DropdownMenuItem(value: 'doctor', child: Text('Doctor')),
+                      DropdownMenuItem(value: 'patient', child: Text('Patient')),
                       DropdownMenuItem(value: 'admin', child: Text('Administrator')),
-                      DropdownMenuItem(value: 'family', child: Text('Family Member')),
                     ],
                     onChanged: (value) {
                       setState(() {

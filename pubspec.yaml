@@ -45,6 +45,10 @@ dependencies:
   # Network & HTTP
   dio: ^5.4.0
 
+  # Bluetooth & Device Connection
+  flutter_blue_plus: ^1.32.12
+  permission_handler: ^11.3.1
+
   # Dependency Injection
   get_it: ^7.7.0
 
@@ -53,6 +57,18 @@ dependencies:
   cryptography: ^2.7.0
   flutter_secure_storage: ^9.0.0
   local_auth: ^2.1.6
+  
+  # 2FA & OAuth
+  qr_flutter: ^4.1.0
+  qr_code_scanner: ^1.0.1
+  otp: ^3.1.4
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.1
+  firebase_auth: ^4.17.8
+  firebase_core: ^2.27.0
+  url_launcher: ^6.2.5
+  font_awesome_flutter: ^10.7.0
+  flutter_signin_button: ^2.0.0
 
   # Storage
   hive: ^2.2.3

@@ -24,24 +24,63 @@ class FontUtils {
 
   // ===== Font Size Calculation =====
   
-  /// Get responsive font size based on screen type
+  /// Get responsive font size based on screen type with minimum font protection
   static double getFontSize(BuildContext context, {
     required double mobileSize,
     required double tabletSize,
     required double desktopSize,
+    double? mobileMin,
+    double? tabletMin,
+    double? desktopMin,
   }) {
-    if (isMobile(context)) return mobileSize;
-    if (isTablet(context)) return tabletSize;
-    return desktopSize;
+    if (isMobile(context)) {
+      return mobileMin != null ? 
+        (mobileSize < mobileMin ? mobileMin : mobileSize) : mobileSize;
+    }
+    if (isTablet(context)) {
+      return tabletMin != null ? 
+        (tabletSize < tabletMin ? tabletMin : tabletSize) : tabletSize;
+    }
+    return desktopMin != null ? 
+      (desktopSize < desktopMin ? desktopMin : desktopSize) : desktopSize;
   }
   
-  /// Get responsive title font size
+  /// Get responsive display font size (largest, for main titles)
+  static double getResponsiveDisplayFontSize(BuildContext context) {
+    return getFontSize(
+      context,
+      mobileSize: AppConstants.mobileDisplayFontSize,
+      tabletSize: AppConstants.tabletDisplayFontSize,
+      desktopSize: AppConstants.desktopDisplayFontSize,
+      mobileMin: AppConstants.mobileMinTitleFontSize,
+      tabletMin: AppConstants.tabletMinTitleFontSize,
+      desktopMin: AppConstants.desktopMinTitleFontSize,
+    );
+  }
+  
+  /// Get responsive headline font size (for section headers)
+  static double getResponsiveHeadlineFontSize(BuildContext context) {
+    return getFontSize(
+      context,
+      mobileSize: AppConstants.mobileHeadlineFontSize,
+      tabletSize: AppConstants.tabletHeadlineFontSize,
+      desktopSize: AppConstants.desktopHeadlineFontSize,
+      mobileMin: AppConstants.mobileMinTitleFontSize,
+      tabletMin: AppConstants.tabletMinTitleFontSize,
+      desktopMin: AppConstants.desktopMinTitleFontSize,
+    );
+  }
+
+  /// Get responsive title font size (for card headers, smaller than before)
   static double getResponsiveTitleFontSize(BuildContext context) {
     return getFontSize(
       context,
       mobileSize: AppConstants.mobileTitleFontSize,
       tabletSize: AppConstants.tabletTitleFontSize,
       desktopSize: AppConstants.desktopTitleFontSize,
+      mobileMin: AppConstants.mobileMinTitleFontSize,
+      tabletMin: AppConstants.tabletMinTitleFontSize,
+      desktopMin: AppConstants.desktopMinTitleFontSize,
     );
   }
   
@@ -50,13 +89,42 @@ class FontUtils {
     return getResponsiveTitleFontSize(context) * 0.8;
   }
   
-  /// Get responsive body font size
+  /// Get responsive body large font size (primary content)
+  static double getResponsiveBodyLargeFontSize(BuildContext context) {
+    return getFontSize(
+      context,
+      mobileSize: AppConstants.mobileBodyLargeFontSize,
+      tabletSize: AppConstants.tabletBodyLargeFontSize,
+      desktopSize: AppConstants.desktopBodyLargeFontSize,
+      mobileMin: AppConstants.mobileMinBodyFontSize,
+      tabletMin: AppConstants.tabletMinBodyFontSize,
+      desktopMin: AppConstants.desktopMinBodyFontSize,
+    );
+  }
+  
+  /// Get responsive body font size (secondary content, smaller)
   static double getResponsiveBodyFontSize(BuildContext context) {
     return getFontSize(
       context,
       mobileSize: AppConstants.mobileBodyFontSize,
       tabletSize: AppConstants.tabletBodyFontSize,
       desktopSize: AppConstants.desktopBodyFontSize,
+      mobileMin: AppConstants.mobileMinBodyFontSize,
+      tabletMin: AppConstants.tabletMinBodyFontSize,
+      desktopMin: AppConstants.desktopMinBodyFontSize,
+    );
+  }
+  
+  /// Get responsive label font size (for form labels, tags)
+  static double getResponsiveLabelFontSize(BuildContext context) {
+    return getFontSize(
+      context,
+      mobileSize: AppConstants.mobileLabelFontSize,
+      tabletSize: AppConstants.tabletLabelFontSize,
+      desktopSize: AppConstants.desktopLabelFontSize,
+      mobileMin: AppConstants.mobileMinCaptionFontSize,
+      tabletMin: AppConstants.tabletMinCaptionFontSize,
+      desktopMin: AppConstants.desktopMinCaptionFontSize,
     );
   }
   
@@ -67,6 +135,9 @@ class FontUtils {
       mobileSize: AppConstants.mobileCaptionFontSize,
       tabletSize: AppConstants.tabletCaptionFontSize,
       desktopSize: AppConstants.desktopCaptionFontSize,
+      mobileMin: AppConstants.mobileMinCaptionFontSize,
+      tabletMin: AppConstants.tabletMinCaptionFontSize,
+      desktopMin: AppConstants.desktopMinCaptionFontSize,
     );
   }
   
@@ -142,44 +213,103 @@ class FontUtils {
     );
   }
 
-  // ===== Style Method Shortcuts (for backward compatibility) =====
+  // ===== Style Method Shortcuts (Enhanced Typography) =====
   
-  /// Title style method
+  /// Display style method (largest, for main page titles)
+  static TextStyle display({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveDisplayFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w700, // Bold by default
+      color: color,
+      letterSpacing: -0.5, // Tighter spacing for large text
+    );
+  }
+  
+  /// Headline style method (for section headers)
+  static TextStyle headline({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveHeadlineFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w600, // Semi-bold by default
+      color: color,
+      letterSpacing: -0.25,
+    );
+  }
+
+  /// Title style method (for card headers, refined)
   static TextStyle title({
     required BuildContext context,
     Color? color,
     FontWeight? fontWeight,
   }) {
-    return responsiveTitleStyle(
-      context: context,
+    return TextStyle(
+      fontSize: getResponsiveTitleFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w600,
       color: color,
-      fontWeight: fontWeight,
     );
   }
   
-  /// Body style method
+  /// Body large style method (primary content)
+  static TextStyle bodyLarge({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveBodyLargeFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w400,
+      color: color,
+      height: 1.5, // Better line height
+    );
+  }
+  
+  /// Body style method (secondary content, refined)
   static TextStyle body({
     required BuildContext context,
     Color? color,
     FontWeight? fontWeight,
   }) {
-    return responsiveBodyStyle(
-      context: context,
+    return TextStyle(
+      fontSize: getResponsiveBodyFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w400,
       color: color,
-      fontWeight: fontWeight,
+      height: 1.4,
     );
   }
   
-  /// Caption style method
+  /// Label style method (for form labels, tags)
+  static TextStyle label({
+    required BuildContext context,
+    Color? color,
+    FontWeight? fontWeight,
+  }) {
+    return TextStyle(
+      fontSize: getResponsiveLabelFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w500,
+      color: color,
+      letterSpacing: 0.1,
+    );
+  }
+  
+  /// Caption style method (metadata, timestamps, refined smaller)
   static TextStyle caption({
     required BuildContext context,
     Color? color,
     FontWeight? fontWeight,
   }) {
-    return responsiveCaptionStyle(
-      context: context,
+    return TextStyle(
+      fontSize: getResponsiveCaptionFontSize(context),
+      fontWeight: fontWeight ?? FontWeight.w400,
       color: color,
-      fontWeight: fontWeight,
+      height: 1.3,
+      letterSpacing: 0.15,
     );
   }
   

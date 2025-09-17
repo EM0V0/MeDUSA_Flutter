@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
-import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/role_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/font_utils.dart';
 import '../../../core/utils/icon_utils.dart';
+import '../../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../services/role_service.dart';
 
 class MainLayout extends StatefulWidget {
   final Widget child;
@@ -22,38 +25,32 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
-
-  final List<NavigationItem> _navigationItems = [
-    NavigationItem(
-      icon: Icons.dashboard_outlined,
-      selectedIcon: Icons.dashboard,
-      label: 'Dashboard',
-      route: '/dashboard',
-    ),
-    NavigationItem(
-      icon: Icons.people_outlined,
-      selectedIcon: Icons.people,
-      label: 'Patients',
-      route: '/patients',
-    ),
-    NavigationItem(
-      icon: Icons.analytics_outlined,
-      selectedIcon: Icons.analytics,
-      label: 'Reports',
-      route: '/reports',
-    ),
-    NavigationItem(
-      icon: Icons.settings_outlined,
-      selectedIcon: Icons.settings,
-      label: 'Settings',
-      route: '/settings',
-    ),
-  ];
+  late RoleService _roleService;
+  List<NavigationItemConfig> _navigationItems = [];
 
   @override
   void initState() {
     super.initState();
-    // Don't call _updateSelectedIndex in initState because context is not fully initialized at this point
+    _roleService = RoleService();
+    _updateNavigationItems();
+    
+    // Listen to role service changes
+    _roleService.addListener(_updateNavigationItems);
+  }
+
+  @override
+  void dispose() {
+    _roleService.removeListener(_updateNavigationItems);
+    super.dispose();
+  }
+
+  void _updateNavigationItems() {
+    if (mounted) {
+      setState(() {
+        _navigationItems = _roleService.getFilteredNavigationItems();
+        // Force rebuild to update title and other role-dependent UI elements
+      });
+    }
   }
 
   @override
@@ -107,7 +104,7 @@ class _MainLayoutState extends State<MainLayout> {
           SizedBox(width: 8.w),
           Expanded(
             child: Text(
-              AppConstants.appName,
+              _getCurrentPageTitle(),
               style: FontUtils.title(
                 context: context,
                 fontWeight: FontWeight.bold,
@@ -218,7 +215,7 @@ class _MainLayoutState extends State<MainLayout> {
                   child: ListTile(
                     selected: isSelected,
                     leading: Icon(
-                      isSelected ? item.selectedIcon : item.icon,
+                      _getIconData(isSelected ? item.selectedIcon : item.icon),
                       color: isSelected ? AppColors.primary : AppColors.lightOnSurfaceVariant,
                       size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
                     ),
@@ -248,9 +245,14 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   Widget _buildBottomNavigation() {
+    // Ensure we have at least 2 items for BottomNavigationBar
+    if (_navigationItems.length < 2) {
+      return const SizedBox.shrink(); // Hide bottom navigation if insufficient items
+    }
+    
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
-      currentIndex: _selectedIndex,
+      currentIndex: _selectedIndex.clamp(0, _navigationItems.length - 1), // Clamp index to valid range
       onTap: _onNavItemTapped,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.lightOnSurfaceVariant,
@@ -266,11 +268,11 @@ class _MainLayoutState extends State<MainLayout> {
           .map(
             (item) => BottomNavigationBarItem(
               icon: Icon(
-                item.icon,
+                _getIconData(item.icon),
                 size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
               ),
               activeIcon: Icon(
-                item.selectedIcon,
+                _getIconData(item.selectedIcon),
                 size: IconUtils.getResponsiveIconSize(IconSizeType.medium, context),
               ),
               label: item.label,
@@ -281,6 +283,11 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   void _onNavItemTapped(int index) {
+    // Ensure we have valid navigation items and index
+    if (_navigationItems.isEmpty || index >= _navigationItems.length || index < 0) {
+      return;
+    }
+    
     setState(() {
       _selectedIndex = index;
     });
@@ -301,11 +308,26 @@ class _MainLayoutState extends State<MainLayout> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              if (!mounted) return;
+              
               Navigator.of(context).pop();
-              // Clear authentication state and navigate to login
-              // TODO: integrate real auth state reset via bloc/service
-              context.go('/login');
+              
+              // Get AuthBloc and trigger logout
+              final authBloc = BlocProvider.of<AuthBloc>(context, listen: false);
+              
+              // Clear role service first
+              _roleService.clear();
+              
+              // Trigger logout event in AuthBloc
+              authBloc.add(LogoutRequested());
+              
+              // Wait for logout to complete and then navigate
+              await Future.delayed(const Duration(milliseconds: 100));
+              
+              if (mounted && context.mounted) {
+                context.go('/login');
+              }
             },
             child: const Text('Logout'),
           ),
@@ -313,18 +335,94 @@ class _MainLayoutState extends State<MainLayout> {
       ),
     );
   }
+
+  /// Get current page title based on route and role
+  String _getCurrentPageTitle() {
+    try {
+      final currentLocation = GoRouterState.of(context).matchedLocation;
+      return _roleService.getPageTitle(currentLocation);
+    } catch (e) {
+      return _roleService.getHomePageTitle();
+    }
+  }
+
+  /// Convert string icon name to IconData
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      // Dashboard icons
+      case 'dashboard_outlined':
+        return Icons.dashboard_outlined;
+      case 'dashboard':
+        return Icons.dashboard;
+      
+      // People/Patient icons
+      case 'people_outlined':
+        return Icons.people_outlined;
+      case 'people':
+        return Icons.people;
+      case 'person_outlined':
+        return Icons.person_outlined;
+      case 'person':
+        return Icons.person;
+      
+      // Analytics icons
+      case 'analytics_outlined':
+        return Icons.analytics_outlined;
+      case 'analytics':
+        return Icons.analytics;
+      
+      // Settings icons
+      case 'settings_outlined':
+        return Icons.settings_outlined;
+      case 'settings':
+        return Icons.settings;
+      
+      // Report/Description icons
+      case 'description_outlined':
+        return Icons.description_outlined;
+      case 'description':
+        return Icons.description;
+      
+      // Health icons
+      case 'health_and_safety_outlined':
+        return Icons.health_and_safety_outlined;
+      case 'health_and_safety':
+        return Icons.health_and_safety;
+      
+      // Medication icons
+      case 'medication_outlined':
+        return Icons.medication_outlined;
+      case 'medication':
+        return Icons.medication;
+      
+      // Message icons
+      case 'message_outlined':
+        return Icons.message_outlined;
+      case 'message':
+        return Icons.message;
+      
+      // Admin icons
+      case 'admin_panel_settings_outlined':
+        return Icons.admin_panel_settings_outlined;
+      case 'admin_panel_settings':
+        return Icons.admin_panel_settings;
+      
+      // Device icons
+      case 'devices_outlined':
+        return Icons.devices_outlined;
+      case 'devices':
+        return Icons.devices;
+      
+      // History icons
+      case 'history_outlined':
+        return Icons.history_outlined;
+      case 'history':
+        return Icons.history;
+      
+      // Default fallback
+      default:
+        return Icons.help_outline;
+    }
+  }
 }
 
-class NavigationItem {
-  final IconData icon;
-  final IconData selectedIcon;
-  final String label;
-  final String route;
-
-  NavigationItem({
-    required this.icon,
-    required this.selectedIcon,
-    required this.label,
-    required this.route,
-  });
-}

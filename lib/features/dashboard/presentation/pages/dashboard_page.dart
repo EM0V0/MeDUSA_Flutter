@@ -293,7 +293,11 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                     child: Icon(
                       Icons.show_chart,
-                      size: 48.w,
+                      size: IconUtils.getProtectedSize(
+                        context,
+                        targetSize: 48.0,
+                        minSize: 36.0, // Never smaller than 36px
+                      ),
                       color: AppColors.primary,
                     ),
                   ),

@@ -56,14 +56,42 @@ class IconUtils {
         break;
     }
     
-    // Mobile icons slightly enlarged for improved usability
+    // Apply minimum size protection and mobile enhancement
+    double finalSize;
     if (isMobile) {
-      return baseSize * 1.1;
+      finalSize = baseSize * 1.2; // Increased from 1.1 to 1.2 for better visibility
+      // Apply mobile minimum size protection
+      if (finalSize < AppConstants.mobileMinIconSize) {
+        finalSize = AppConstants.mobileMinIconSize;
+      }
     } else if (isTablet) {
-      return baseSize * 1.05;
+      finalSize = baseSize * 1.1; // Increased from 1.05 to 1.1
     } else {
-      return baseSize;
+      finalSize = baseSize;
     }
+    
+    // Critical: Absolute minimum size protection for all devices
+    // Prevent icons from becoming invisible on very narrow screens
+    double absoluteMinSize;
+    switch (sizeType) {
+      case IconSizeType.small:
+        absoluteMinSize = 16.0;
+        break;
+      case IconSizeType.medium:
+        absoluteMinSize = 20.0;
+        break;
+      case IconSizeType.large:
+        absoluteMinSize = 24.0;
+        break;
+      case IconSizeType.xlarge:
+        absoluteMinSize = 28.0;
+        break;
+      case IconSizeType.xxlarge:
+        absoluteMinSize = 32.0;
+        break;
+    }
+    
+    return finalSize < absoluteMinSize ? absoluteMinSize : finalSize;
   }
   
   /// Get icon size based on purpose
@@ -90,6 +118,85 @@ class IconUtils {
       case IconPurpose.visibility:
         return getResponsiveIconSize(IconSizeType.medium, context);
     }
+  }
+  
+  /// Get status indicator size (for badges, online dots, etc.)
+  static double getStatusIndicatorSize(BuildContext context, {bool isLarge = false}) {
+    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
+    
+    double baseSize = isLarge 
+        ? AppConstants.statusIndicatorLarge 
+        : AppConstants.statusIndicatorMedium;
+    
+    if (isMobile) {
+      // Ensure minimum size for mobile touch targets
+      double mobileSize = baseSize * 1.2;
+      return mobileSize < AppConstants.mobileStatusIndicatorMin 
+          ? AppConstants.mobileStatusIndicatorMin 
+          : mobileSize;
+    }
+    
+    return baseSize;
+  }
+  
+  /// Get avatar size with minimum protection (for user avatars, profile pictures)
+  static double getAvatarSize(BuildContext context, {
+    double? desktopSize,
+    double? mobileSize,
+    double? minSize,
+  }) {
+    final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
+    
+    // Default sizes if not specified
+    final defaultDesktopSize = desktopSize ?? 48.0;
+    final defaultMobileSize = mobileSize ?? 56.0;
+    final defaultMinSize = minSize ?? 32.0; // Absolute minimum for avatars
+    
+    double targetSize = isMobile ? defaultMobileSize : defaultDesktopSize;
+    
+    // Apply ScreenUtil scaling but with minimum protection
+    double scaledSize = targetSize;
+    
+    // Critical: Never let avatars become smaller than minimum readable size
+    return scaledSize < defaultMinSize ? defaultMinSize : scaledSize;
+  }
+  
+  /// Get protected size for any UI element (universal protection)
+  static double getProtectedSize(BuildContext context, {
+    required double targetSize,
+    required double minSize,
+    bool useScreenUtil = false, // Changed default to false for safety
+  }) {
+    double finalSize = targetSize;
+    
+    // Apply ScreenUtil if explicitly requested (but with caution)
+    if (useScreenUtil) {
+      final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
+      // Apply scaling more conservatively
+      finalSize = isMobile ? targetSize * 0.9 : targetSize;
+    }
+    
+    // Apply minimum protection - this is the key safeguard
+    return finalSize < minSize ? minSize : finalSize;
+  }
+  
+  /// Get protected height for containers and charts
+  static double getProtectedHeight(BuildContext context, {
+    required double targetHeight,
+    required double minHeight,
+    bool useScreenUtil = false, // Changed default to false for safety
+  }) {
+    double finalHeight = targetHeight;
+    
+    // Apply ScreenUtil if explicitly requested (but with caution)
+    if (useScreenUtil) {
+      final isMobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
+      // Apply scaling more conservatively  
+      finalHeight = isMobile ? targetHeight * 0.9 : targetHeight;
+    }
+    
+    // Apply minimum protection - never smaller than minHeight
+    return finalHeight < minHeight ? minHeight : finalHeight;
   }
 
   // ===== Responsive Icon Creation =====
