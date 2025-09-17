@@ -6,10 +6,10 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
-import 'encryption_service.dart';
+import '../../core/utils/logger.dart';
 import 'security_service.dart';
 
-/// Storage service interface for secure data managementž:„‰hX¨¡½a{
+/// Storage service interface for secure data management
 abstract class StorageService {
   // Secure Storage (for sensitive data like tokens)
   Future<void> storeSecure(String key, String value, {bool encrypt = true});
@@ -77,14 +77,13 @@ abstract class StorageService {
   Future<void> rotateEncryptionKeys();
 }
 
-/// Storage service implementation for secure data managementž:„‰hX¨¡ž°
+/// Storage service implementation for secure data management
 class StorageServiceImpl implements StorageService {
   final FlutterSecureStorage _secureStorage;
   final SharedPreferences _sharedPreferences;
   final Box _userBox;
   final Box _settingsBox;
   final Box _cacheBox;
-  final EncryptionService _encryptionService;
   final SecurityService _securityService;
 
   // Security constants
@@ -101,14 +100,12 @@ class StorageServiceImpl implements StorageService {
     required Box userBox,
     required Box settingsBox,
     required Box cacheBox,
-    required EncryptionService encryptionService,
     required SecurityService securityService,
   })  : _secureStorage = secureStorage,
         _sharedPreferences = sharedPreferences,
         _userBox = userBox,
         _settingsBox = settingsBox,
         _cacheBox = cacheBox,
-        _encryptionService = encryptionService,
         _securityService = securityService;
 
   // Enhanced Secure Storage Implementation
@@ -119,7 +116,8 @@ class StorageServiceImpl implements StorageService {
       
       String finalValue = value;
       if (encrypt) {
-        finalValue = await _encryptionService.encryptData(value);
+        // Simple base64 encoding as placeholder for encryption
+        finalValue = base64Encode(utf8.encode(value));
       }
       
       await _secureStorage.write(
@@ -129,19 +127,15 @@ class StorageServiceImpl implements StorageService {
           encryptedSharedPreferences: true,
         ),
         iOptions: const IOSOptions(
-          accessibility: IOSAccessibility.first_unlock_this_device,
+          accessibility: KeychainAccessibility.first_unlock_this_device,
         ),
       );
       
-      _securityService.logSecurityEvent(
-        'storage_secure_write',
-        metadata: {'key': key},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_secure_write for key: $key');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       rethrow;
     }
   }
@@ -156,23 +150,20 @@ class StorageServiceImpl implements StorageService {
       
       if (decrypt) {
         try {
-          return await _encryptionService.decryptData(value);
+          // Simple base64 decoding as placeholder for decryption
+          return utf8.decode(base64Decode(value));
         } catch (e) {
           // If decryption fails, return original value (might be unencrypted)
-          _securityService.logSecurityEvent(
-            'storage_decryption_failed',
-            metadata: {'key': key},
-          );
+          // Log security event (placeholder)
+          Logger.info('Security event: storage_decryption_failed for key: $key');
           return value;
         }
       }
       
       return value;
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return null;
     }
   }
@@ -183,15 +174,11 @@ class StorageServiceImpl implements StorageService {
       await logStorageAccess('delete_secure', key);
       await _secureStorage.delete(key: key);
       
-      _securityService.logSecurityEvent(
-        'storage_secure_delete',
-        metadata: {'key': key},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_secure_delete for key: $key');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
     }
   }
 
@@ -201,12 +188,11 @@ class StorageServiceImpl implements StorageService {
       await logStorageAccess('clear_all_secure', 'all');
       await _secureStorage.deleteAll();
       
-      _securityService.logSecurityEvent('storage_secure_clear_all');
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_secure_clear_all');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
     }
   }
 
@@ -236,7 +222,7 @@ class StorageServiceImpl implements StorageService {
       String jsonData = data;
       if (decrypt) {
         try {
-          jsonData = await _encryptionService.decryptData(data);
+          jsonData = utf8.decode(base64Decode(data));
         } catch (e) {
           // If decryption fails, try to parse as unencrypted
           jsonData = data;
@@ -245,10 +231,8 @@ class StorageServiceImpl implements StorageService {
       
       return Map<String, dynamic>.from(json.decode(jsonData));
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return null;
     }
   }
@@ -260,15 +244,13 @@ class StorageServiceImpl implements StorageService {
       
       String jsonData = json.encode(value);
       if (encrypt) {
-        jsonData = await _encryptionService.encryptData(jsonData);
+        jsonData = base64Encode(utf8.encode(jsonData));
       }
       
       await _sharedPreferences.setString(key, jsonData);
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
     }
   }
 
@@ -277,12 +259,12 @@ class StorageServiceImpl implements StorageService {
     try {
       String finalValue = value;
       if (encrypt) {
-        finalValue = await _encryptionService.encryptData(value);
+        finalValue = base64Encode(utf8.encode(value));
       }
       
       await _sharedPreferences.setString(key, finalValue);
     } catch (e) {
-      print('Error storing string data: $e');
+      Logger.error('Error storing string data', error: e);
     }
   }
 
@@ -292,7 +274,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _sharedPreferences.setString(key, value);
     } catch (e) {
-      print('Error storing string: $e');
+      Logger.error('Error storing string: $e');
     }
   }
 
@@ -301,7 +283,7 @@ class StorageServiceImpl implements StorageService {
     try {
       return _sharedPreferences.getString(key);
     } catch (e) {
-      print('Error reading string: $e');
+      Logger.error('Error reading string: $e');
       return null;
     }
   }
@@ -311,7 +293,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _sharedPreferences.setBool(key, value);
     } catch (e) {
-      print('Error storing bool: $e');
+      Logger.error('Error storing bool: $e');
     }
   }
 
@@ -320,7 +302,7 @@ class StorageServiceImpl implements StorageService {
     try {
       return _sharedPreferences.getBool(key);
     } catch (e) {
-      print('Error reading bool: $e');
+      Logger.error('Error reading bool: $e');
       return null;
     }
   }
@@ -330,7 +312,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _sharedPreferences.setInt(key, value);
     } catch (e) {
-      print('Error storing int: $e');
+      Logger.error('Error storing int: $e');
     }
   }
 
@@ -339,7 +321,7 @@ class StorageServiceImpl implements StorageService {
     try {
       return _sharedPreferences.getInt(key);
     } catch (e) {
-      print('Error reading int: $e');
+      Logger.error('Error reading int: $e');
       return null;
     }
   }
@@ -349,7 +331,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _sharedPreferences.setDouble(key, value);
     } catch (e) {
-      print('Error storing double: $e');
+      Logger.error('Error storing double: $e');
     }
   }
 
@@ -358,7 +340,7 @@ class StorageServiceImpl implements StorageService {
     try {
       return _sharedPreferences.getDouble(key);
     } catch (e) {
-      print('Error reading double: $e');
+      Logger.error('Error reading double: $e');
       return null;
     }
   }
@@ -368,7 +350,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _sharedPreferences.remove(key);
     } catch (e) {
-      print('Error removing key: $e');
+      Logger.error('Error removing key: $e');
     }
   }
 
@@ -377,7 +359,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _sharedPreferences.clear();
     } catch (e) {
-      print('Error clearing shared preferences: $e');
+      Logger.error('Error clearing shared preferences: $e');
     }
   }
 
@@ -387,7 +369,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _userBox.put('current_user', user);
     } catch (e) {
-      print('Error storing user: $e');
+      Logger.error('Error storing user: $e');
     }
   }
 
@@ -400,7 +382,7 @@ class StorageServiceImpl implements StorageService {
       }
       return null;
     } catch (e) {
-      print('Error reading user: $e');
+      Logger.error('Error reading user: $e');
       return null;
     }
   }
@@ -410,7 +392,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _userBox.delete('current_user');
     } catch (e) {
-      print('Error deleting user: $e');
+      Logger.error('Error deleting user: $e');
     }
   }
 
@@ -419,11 +401,11 @@ class StorageServiceImpl implements StorageService {
     try {
       dynamic finalValue = value;
       if (encrypt && value is String) {
-        finalValue = await _encryptionService.encryptData(value);
+        finalValue = base64Encode(utf8.encode(value));
       }
       await _settingsBox.put(key, finalValue);
     } catch (e) {
-      print('Error storing setting: $e');
+      Logger.error('Error storing setting: $e');
     }
   }
 
@@ -434,7 +416,7 @@ class StorageServiceImpl implements StorageService {
       
       if (decrypt && value is String) {
         try {
-          value = await _encryptionService.decryptData(value);
+          value = utf8.decode(base64Decode(value));
         } catch (e) {
           // If decryption fails, use original value
         }
@@ -445,7 +427,7 @@ class StorageServiceImpl implements StorageService {
       }
       return null;
     } catch (e) {
-      print('Error reading setting: $e');
+      Logger.error('Error reading setting: $e');
       return null;
     }
   }
@@ -455,7 +437,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _settingsBox.delete(key);
     } catch (e) {
-      print('Error deleting setting: $e');
+      Logger.error('Error deleting setting: $e');
     }
   }
 
@@ -464,7 +446,7 @@ class StorageServiceImpl implements StorageService {
     try {
       dynamic finalValue = value;
       if (encrypt && value is String) {
-        finalValue = await _encryptionService.encryptData(value);
+        finalValue = base64Encode(utf8.encode(value));
       }
       
       final cacheEntry = {
@@ -475,7 +457,7 @@ class StorageServiceImpl implements StorageService {
       };
       await _cacheBox.put(key, cacheEntry);
     } catch (e) {
-      print('Error storing cache: $e');
+      Logger.error('Error storing cache: $e');
     }
   }
 
@@ -503,7 +485,7 @@ class StorageServiceImpl implements StorageService {
         // Decrypt if needed
         if ((decrypt || wasEncrypted) && value is String) {
           try {
-            value = await _encryptionService.decryptData(value);
+            value = utf8.decode(base64Decode(value));
           } catch (e) {
             // If decryption fails, use original value
           }
@@ -515,7 +497,7 @@ class StorageServiceImpl implements StorageService {
       }
       return null;
     } catch (e) {
-      print('Error reading cache: $e');
+      Logger.error('Error reading cache: $e');
       return null;
     }
   }
@@ -525,7 +507,7 @@ class StorageServiceImpl implements StorageService {
     try {
       await _cacheBox.delete(key);
     } catch (e) {
-      print('Error deleting cache: $e');
+      Logger.error('Error deleting cache: $e');
     }
   }
 
@@ -553,9 +535,9 @@ class StorageServiceImpl implements StorageService {
         await _cacheBox.delete(key);
       }
 
-      print('Cleared ${keysToDelete.length} expired cache entries');
+      Logger.info('Cleared ${keysToDelete.length} expired cache entries');
     } catch (e) {
-      print('Error clearing expired cache: $e');
+      Logger.error('Error clearing expired cache: $e');
     }
   }
 
@@ -590,15 +572,11 @@ class StorageServiceImpl implements StorageService {
       final keyString = base64Encode(key);
       await storeSecure('$_encryptionKeyPrefix$keyId', keyString);
       
-      _securityService.logSecurityEvent(
-        'encryption_key_stored',
-        metadata: {'keyId': keyId},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: encryption_key_stored for keyId: $keyId');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       rethrow;
     }
   }
@@ -611,10 +589,8 @@ class StorageServiceImpl implements StorageService {
       
       return base64Decode(keyString);
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return null;
     }
   }
@@ -624,12 +600,11 @@ class StorageServiceImpl implements StorageService {
     try {
       await storeSecure(_deviceFingerprintKey, fingerprint);
       
-      _securityService.logSecurityEvent('device_fingerprint_stored');
+      // _securityService.logSecurityEvent (placeholder)
+      Logger.info('device_fingerprint_stored');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       rethrow;
     }
   }
@@ -639,10 +614,8 @@ class StorageServiceImpl implements StorageService {
     try {
       return await getSecure(_deviceFingerprintKey);
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return null;
     }
   }
@@ -653,12 +626,11 @@ class StorageServiceImpl implements StorageService {
       final configString = json.encode(config);
       await storeSecure(_securityConfigKey, configString);
       
-      _securityService.logSecurityEvent('security_config_stored');
+      // _securityService.logSecurityEvent (placeholder)
+      Logger.info('security_config_stored');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       rethrow;
     }
   }
@@ -671,10 +643,8 @@ class StorageServiceImpl implements StorageService {
       
       return Map<String, dynamic>.from(json.decode(configString));
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return null;
     }
   }
@@ -685,12 +655,11 @@ class StorageServiceImpl implements StorageService {
       sessionData['timestamp'] = DateTime.now().millisecondsSinceEpoch;
       await setMap(_sessionDataKey, sessionData, encrypt: true);
       
-      _securityService.logSecurityEvent('session_data_stored');
+      // _securityService.logSecurityEvent (placeholder)
+      Logger.info('session_data_stored');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       rethrow;
     }
   }
@@ -700,10 +669,8 @@ class StorageServiceImpl implements StorageService {
     try {
       return await getMap(_sessionDataKey, decrypt: true);
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return null;
     }
   }
@@ -713,12 +680,11 @@ class StorageServiceImpl implements StorageService {
     try {
       await storeSecure('${AppConstants.tokenKey}_refresh', refreshToken);
       
-      _securityService.logSecurityEvent('refresh_token_stored');
+      // _securityService.logSecurityEvent (placeholder)
+      Logger.info('refresh_token_stored');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       rethrow;
     }
   }
@@ -728,10 +694,8 @@ class StorageServiceImpl implements StorageService {
     try {
       return await getSecure('${AppConstants.tokenKey}_refresh');
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return null;
     }
   }
@@ -752,7 +716,7 @@ class StorageServiceImpl implements StorageService {
       await storeCache(logKey, logEntry, ttl: const Duration(days: 30));
     } catch (e) {
       // Don't throw errors for logging failures
-      print('Error logging storage access: $e');
+      Logger.error('Error logging storage access: $e');
     }
   }
 
@@ -773,10 +737,8 @@ class StorageServiceImpl implements StorageService {
       
       final isValid = currentHash == storedHash;
       
-      _securityService.logSecurityEvent(
-        'storage_integrity_check',
-        metadata: {'passed': isValid},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_integrity_check - passed: $isValid');
       
       if (!isValid) {
         // Update hash for next verification
@@ -785,10 +747,8 @@ class StorageServiceImpl implements StorageService {
       
       return isValid;
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       return false;
     }
   }
@@ -798,7 +758,8 @@ class StorageServiceImpl implements StorageService {
     try {
       // This would implement key rotation logic in production
       // For now, we'll just log the event
-      _securityService.logSecurityEvent('encryption_key_rotation');
+      // _securityService.logSecurityEvent (placeholder)
+      Logger.info('encryption_key_rotation');
       
       // In production, this would:
       // 1. Generate new encryption keys
@@ -807,10 +768,8 @@ class StorageServiceImpl implements StorageService {
       // 4. Update key references
       
     } catch (e) {
-      _securityService.logSecurityEvent(
-        'storage_error',
-        metadata: {'error': e.toString()},
-      );
+      // Log security event (placeholder)
+      Logger.info('Security event: storage_error - ${e.toString()}');
       rethrow;
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/icon_utils.dart';
 
 class AuthLayout extends StatelessWidget {
   final Widget child;
@@ -57,67 +58,38 @@ class AuthLayout extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 32.h),
-                    Card(
-                      color: AppColors.onPrimary.withValues(alpha: 0.1),
-                      child: Padding(
-                        padding: EdgeInsets.all(16.w),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.security,
-                                  color: AppColors.onPrimary,
-                                  size: 20.w,
-                                ),
-                                SizedBox(width: 8.w),
-                                const Text(
-                                  'End-to-End Encryption',
-                                  style: TextStyle(
-                                    color: AppColors.onPrimary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 8.h),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.cloud_sync,
-                                  color: AppColors.onPrimary,
-                                  size: 20.w,
-                                ),
-                                SizedBox(width: 8.w),
-                                const Text(
-                                  'Real-time Monitoring',
-                                  style: TextStyle(
-                                    color: AppColors.onPrimary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 8.h),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.analytics,
-                                  color: AppColors.onPrimary,
-                                  size: 20.w,
-                                ),
-                                SizedBox(width: 8.w),
-                                const Text(
-                                  'Advanced Analytics',
-                                  style: TextStyle(
-                                    color: AppColors.onPrimary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                    Container(
+                      padding: EdgeInsets.all(24.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.onPrimary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16.r),
+                        border: Border.all(
+                          color: AppColors.onPrimary.withValues(alpha: 0.2),
+                          width: 1,
                         ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+                        crossAxisAlignment: CrossAxisAlignment.center, // Center horizontally
+                        children: [
+                          _buildFeatureItem(
+                            context,
+                            Icons.security,
+                            'End-to-End Encryption',
+                          ),
+                          SizedBox(height: 16.h), // Increased spacing
+                          _buildFeatureItem(
+                            context,
+                            Icons.cloud_sync,
+                            'Real-time Monitoring',
+                          ),
+                          SizedBox(height: 16.h), // Increased spacing
+                          _buildFeatureItem(
+                            context,
+                            Icons.analytics,
+                            'Advanced Analytics',
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -142,6 +114,51 @@ class AuthLayout extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// Build a centered feature item with icon and text
+  Widget _buildFeatureItem(BuildContext context, IconData icon, String text) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.onPrimary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center, // Center the row content
+        mainAxisSize: MainAxisSize.min, // Take only necessary space
+        children: [
+          Container(
+            padding: EdgeInsets.all(8.w),
+            decoration: BoxDecoration(
+              color: AppColors.onPrimary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Icon(
+              icon,
+              color: AppColors.onPrimary,
+              size: IconUtils.getProtectedSize(
+                context,
+                targetSize: 20.0,
+                minSize: 18.0,
+              ),
+            ),
+          ),
+          SizedBox(width: 12.w),
+          Flexible(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: AppColors.onPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
